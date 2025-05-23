@@ -16,6 +16,10 @@
     },
     "author": "huynhnguyen1906",
     "license": "ISC",
+    "engines": {
+        "node": ">=20.18.1"
+    },
+    "packageManager": "npm@11.1.0",
     "dependencies": {
         "express": "^5.0.1"
     },
@@ -33,5 +37,9 @@
         "tsx": "^4.19.2",
         "typescript": "^5.6.3",
         "typescript-eslint": "^8.15.0"
+    },
+    "volta": {
+        "node": "20.18.1",
+        "npm": "11.1.0"
     }
 }
