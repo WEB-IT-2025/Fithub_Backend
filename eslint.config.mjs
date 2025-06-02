@@ -1,6 +1,6 @@
-import eslintPluginPrettier from 'eslint-plugin-prettier';
-import globals from 'globals';
-import eslintPluginTs from '@typescript-eslint/eslint-plugin';
+import eslintPluginTs from '@typescript-eslint/eslint-plugin'
+import eslintPluginPrettier from 'eslint-plugin-prettier'
+import globals from 'globals'
 
 export default [
     {
@@ -23,4 +23,4 @@ export default [
             'prettier/prettier': 'warn',
         },
     },
-];
+]
