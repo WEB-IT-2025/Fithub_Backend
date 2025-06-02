@@ -1,2 +1,7 @@
-node_modules/
-dist/
+.next
+.idea
+.vscode
+build
+node_modules
+public
+*.md
