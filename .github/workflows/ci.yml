@@ -1,31 +1,36 @@
 name: CI - Lint & TypeCheck
 
 on:
-    push:
-        branches: [dev, main]
     pull_request:
-        branches: [dev, main]
+        branches: [dev, main] # devとmainブランチにPRが作成・更新されたときに実行
 
 jobs:
     validate:
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-latest # 最新のUbuntuランナーで実行
 
         steps:
-            - uses: actions/checkout@v3
+            # ソースコードをチェックアウト（GitHub上から取得）
+            - name: リポジトリのチェックアウト
+              uses: actions/checkout@v3
 
-            - name: Setup Node.js
+            # Node.js 20をセットアップ（LTSではなく20指定）
+            - name: Node.jsのセットアップ（v20）
               uses: actions/setup-node@v3
               with:
                   node-version: 20
 
-            - name: Install dependencies
+            # 依存パッケージのインストール（package-lock.jsonに基づく）
+            - name: 依存関係のインストール（npm ci）
               run: npm ci
 
-            - name: TypeScript check
+            # TypeScriptの型チェック（ビルドはしない）
+            - name: TypeScriptの型チェック（--noEmit）
               run: npx tsc --noEmit
 
-            - name: ESLint check
+            # ESLintによるコードスタイル・バグ検出
+            - name: ESLintチェック
               run: npm run lint
 
-            - name: Prettier check
+            # Prettierによるコード整形ルールのチェック
+            - name: Prettier整形チェック
               run: npm run prettier

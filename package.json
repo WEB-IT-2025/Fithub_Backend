@@ -21,10 +21,13 @@
     },
     "packageManager": "npm@11.1.0",
     "dependencies": {
-        "express": "^5.0.1"
+        "dotenv": "^16.5.0",
+        "express": "^5.0.1",
+        "mysql2": "^3.14.1"
     },
     "devDependencies": {
         "@eslint/js": "^9.15.0",
+        "@trivago/prettier-plugin-sort-imports": "^5.2.2",
         "@types/express": "^5.0.0",
         "@types/node": "^22.10.6",
         "eslint": "^9.15.0",
