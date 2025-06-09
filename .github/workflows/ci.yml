@@ -1,8 +1,6 @@
 name: CI - Lint & TypeCheck
 
 on:
-    push:
-        branches: [dev, main] # devとmainブランチにpushされたときに実行
     pull_request:
         branches: [dev, main] # devとmainブランチにPRが作成・更新されたときに実行
 
