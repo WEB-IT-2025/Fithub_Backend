@@ -9,7 +9,7 @@ router.get('/hello', (req, res) => {
     res.send('Hello, Express + TypeScript from API!')
 })
 
-// Test database connection and query
+// Test database connection
 router.get('/db', async (req, res) => {
     try {
         const [result] = await db.query('SELECT 1 + 1 AS solution')
