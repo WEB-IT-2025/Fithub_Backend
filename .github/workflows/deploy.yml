@@ -23,8 +23,8 @@ jobs:
             - name: 📨 .envファイルをEC2に送信
               run: |
                   echo "${{ secrets.ENV_FILE }}" > .env
-                    ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'mkdir -p ~/fithub'
-                    scp -o StrictHostKeyChecking=no .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/fithub/.env
+                  ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'mkdir -p ~/fithub'
+                  scp -o StrictHostKeyChecking=no .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:$HOME/fithub/.env
 
             - name: 🚀 EC2経由でデプロイ実行
               run: |
@@ -32,17 +32,17 @@ jobs:
                     BRANCH=$(echo "${{ github.ref }}" | sed 's|refs/heads/||')
 
                     echo "📁 fithub ディレクトリを準備中..."
-                    if [ ! -d "~/fithub/.git" ]; then
+                    if [ ! -d "$HOME/fithub/.git" ]; then
                       echo "🆕 リポジトリが存在しないため、cloneを実行します"
-                      git clone https://github.com/${{ github.repository }} ~/fithub
+                      git clone https://github.com/${{ github.repository }} $HOME/fithub
                     else
                       echo "📥 既存のリポジトリを更新中（pull）..."
-                      cd ~/fithub
+                      cd $HOME/fithub
                       git pull origin $BRANCH
                     fi
 
                     echo "📂 fithub ディレクトリに移動中..."
-                    cd ~/fithub
+                    cd $HOME/fithub
 
                     echo "📦 依存関係のインストール中..."
                     npm install
