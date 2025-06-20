@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
+import { AUTH_MESSAGES } from '~/constants/messages'
 
 const JWT_SECRET = process.env.JWT_SECRET!
 
@@ -15,7 +16,7 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
     const authHeader = req.headers.authorization
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ success: false, message: 'トークンが見つかりません' })
+        return res.status(401).json({ success: false, message: AUTH_MESSAGES.TOKEN_NOT_FOUND })
     }
 
     const token = authHeader.split(' ')[1]
@@ -26,6 +27,6 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
         req.user = decoded as { user_id: string; user_name: string }
         next()
     } catch {
-        return res.status(403).json({ success: false, message: 'トークンが無効です' })
+        return res.status(403).json({ success: false, message: AUTH_MESSAGES.SESSION_TOKEN_INVALID })
     }
 }
