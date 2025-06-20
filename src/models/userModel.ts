@@ -42,12 +42,12 @@ interface UserRow extends RowDataPacket {
 
 export const userModel = {
     async checkFirebaseUidExists(firebaseUid: string): Promise<boolean> {
-        const [rows] = await db.query<RowDataPacket[]>('SELECT user_id FROM users WHERE user_id = ?', [firebaseUid])
+        const [rows] = await db.query<RowDataPacket[]>('SELECT user_id FROM USERS WHERE user_id = ?', [firebaseUid])
         return rows.length > 0
     },
 
     async checkGithubIdExists(githubId: string): Promise<boolean> {
-        const [rows] = await db.query<RowDataPacket[]>('SELECT user_id FROM users WHERE git_id = ?', [githubId])
+        const [rows] = await db.query<RowDataPacket[]>('SELECT user_id FROM USERS WHERE git_id = ?', [githubId])
         return rows.length > 0
     },
 
@@ -64,7 +64,7 @@ export const userModel = {
             userData
 
         await db.query(
-            `INSERT INTO users 
+            `INSERT INTO USERS 
             (user_id, user_name, user_icon, point, git_access, git_id, google_access_token, google_refresh_token) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [
@@ -82,7 +82,7 @@ export const userModel = {
 
     // Get user by Firebase UID (for login)
     async getUserByFirebaseUid(firebaseUid: string): Promise<CompleteUser | null> {
-        const [rows] = await db.query<UserRow[]>('SELECT * FROM users WHERE user_id = ?', [firebaseUid])
+        const [rows] = await db.query<UserRow[]>('SELECT * FROM USERS WHERE user_id = ?', [firebaseUid])
 
         if (rows.length === 0) {
             return null
@@ -93,7 +93,7 @@ export const userModel = {
 
     // Get user by GitHub ID (for login)
     async getUserByGithubId(githubId: string): Promise<CompleteUser | null> {
-        const [rows] = await db.query<UserRow[]>('SELECT * FROM users WHERE git_id = ?', [githubId])
+        const [rows] = await db.query<UserRow[]>('SELECT * FROM USERS WHERE git_id = ?', [githubId])
 
         if (rows.length === 0) {
             return null
