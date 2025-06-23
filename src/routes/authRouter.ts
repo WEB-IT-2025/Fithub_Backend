@@ -1,6 +1,6 @@
 // src/routes/authRouter.ts
 import express from 'express'
-import { googleOAuthCallback, verifyFirebase } from '~/controllers/authController'
+import { githubOAuthCallback, googleOAuthCallback, verifyFirebase } from '~/controllers/authController'
 import { handleValidationErrors, validateFirebaseVerification } from '~/middlewares/validation'
 
 const router = express.Router()
@@ -10,5 +10,8 @@ router.post('/verify-firebase', validateFirebaseVerification, handleValidationEr
 
 // GET /api/auth/google/callback - Step 2: Handle Google OAuth callback
 router.get('/google/callback', googleOAuthCallback)
+
+// GET /api/auth/github/callback - Step 3: Handle GitHub OAuth callback (Final step)
+router.get('/github/callback', githubOAuthCallback)
 
 export default router
