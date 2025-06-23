@@ -26,13 +26,13 @@ CREATE TABLE USERS (
   user_name VARCHAR(20) NOT NULL,
   user_icon VARCHAR(255),
   point INT NOT NULL,
-  git_access TEXT,
-  git_id VARCHAR(255),
   google_access_token TEXT,
   google_refresh_token TEXT,
   google_token_expires_at DATETIME,
+  github_access_token TEXT,
   github_refresh_token TEXT,
   github_token_expires_at DATETIME,
+  github_user_id VARCHAR(255),
   github_username VARCHAR(255)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -142,12 +142,12 @@ CREATE TABLE GROUP_MEMBER (
 /* =========================== */
 
 -- Insert Users data (matching all 12 columns)
-INSERT INTO USERS (user_id, user_name, user_icon, point, git_access, git_id, google_access_token, google_refresh_token, google_token_expires_at, github_refresh_token, github_token_expires_at, github_username) VALUES
-  ('user001', 'Taro Yamada', '/icons/taro.png', 120, 'github_access_token_1', 'git001', 'google_access_1', 'google_refresh_1', '2025-12-31 23:59:59', 'github_refresh_1', '2025-12-31 23:59:59', 'tarodev'),
-  ('user002', 'Hanako Sato', '/icons/hanako.png', 250, 'github_access_token_2', 'git002', 'google_access_2', 'google_refresh_2', '2025-12-31 23:59:59', 'github_refresh_2', '2025-12-31 23:59:59', 'hanakocode'),
-  ('user003', 'Jiro Tanaka', '/icons/jiro.png', 80, 'github_access_token_3', 'git003', 'google_access_3', 'google_refresh_3', '2025-12-31 23:59:59', 'github_refresh_3', '2025-12-31 23:59:59', 'jiroprog'),
-  ('user004', 'Michiko Ito', '/icons/michiko.png', 180, 'github_access_token_4', 'git004', 'google_access_4', 'google_refresh_4', '2025-12-31 23:59:59', 'github_refresh_4', '2025-12-31 23:59:59', 'michikodev'),
-  ('user005', 'Kenji Suzuki', '/icons/kenji.png', 320, 'github_access_token_5', 'git005', 'google_access_5', 'google_refresh_5', '2025-12-31 23:59:59', 'github_refresh_5', '2025-12-31 23:59:59', 'kenjicoder');
+INSERT INTO USERS (user_id, user_name, user_icon, point, google_access_token, google_refresh_token, google_token_expires_at, github_access_token, github_refresh_token, github_token_expires_at, github_user_id, github_username) VALUES
+  ('user001', 'Taro Yamada', '/icons/taro.png', 120, 'google_access_1', 'google_refresh_1', '2025-12-31 23:59:59', 'github_access_token_1', 'github_refresh_1', '2025-12-31 23:59:59', 'git001', 'tarodev'),
+  ('user002', 'Hanako Sato', '/icons/hanako.png', 250, 'google_access_2', 'google_refresh_2', '2025-12-31 23:59:59', 'github_access_token_2', 'github_refresh_2', '2025-12-31 23:59:59', 'git002', 'hanakocode'),
+  ('user003', 'Jiro Tanaka', '/icons/jiro.png', 80, 'google_access_3', 'google_refresh_3', '2025-12-31 23:59:59', 'github_access_token_3', 'github_refresh_3', '2025-12-31 23:59:59', 'git003', 'jiroprog'),
+  ('user004', 'Michiko Ito', '/icons/michiko.png', 180, 'google_access_4', 'google_refresh_4', '2025-12-31 23:59:59', 'github_access_token_4', 'github_refresh_4', '2025-12-31 23:59:59', 'git004', 'michikodev'),
+  ('user005', 'Kenji Suzuki', '/icons/kenji.png', 320, 'google_access_5', 'google_refresh_5', '2025-12-31 23:59:59', 'github_access_token_5', 'github_refresh_5', '2025-12-31 23:59:59', 'git005', 'kenjicoder');
 
 -- Insert Pets data
 INSERT INTO PETS (pet_id, pet_name, pet_image_folder) VALUES

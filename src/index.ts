@@ -1,4 +1,5 @@
 import express from 'express'
+import path from 'path'
 
 import { ENV } from './config/loadEnv'
 import webRoutes from './routes/web'
@@ -23,8 +24,20 @@ app.use((req, res, next) => {
 // Body parser middleware
 app.use(express.json())
 
+// Static files middleware
+app.use(express.static(path.join(__dirname, '../public')))
+
 // API routes
 app.use('/api', webRoutes)
+
+// Static pages for OAuth compliance
+app.get('/privacy-policy', (_, res) => {
+    res.sendFile(path.join(__dirname, '../public/privacy-policy.html'))
+})
+
+app.get('/terms', (_, res) => {
+    res.sendFile(path.join(__dirname, '../public/terms.html'))
+})
 
 // Middleware to handle 404 errors
 app.use((req, res) => {

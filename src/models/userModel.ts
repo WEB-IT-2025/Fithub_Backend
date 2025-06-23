@@ -23,10 +23,14 @@ export interface CompleteUser {
     user_name: string
     user_icon: string
     point: number
-    git_access: string | null
-    git_id: string
     google_access_token: string | null
     google_refresh_token: string | null
+    google_token_expires_at: Date | null
+    github_access_token: string | null
+    github_refresh_token: string | null
+    github_token_expires_at: Date | null
+    github_user_id: string | null
+    github_username: string | null
 }
 
 interface UserRow extends RowDataPacket {
@@ -34,10 +38,14 @@ interface UserRow extends RowDataPacket {
     user_name: string
     user_icon: string
     point: number
-    git_access: string | null
-    git_id: string
     google_access_token: string | null
     google_refresh_token: string | null
+    google_token_expires_at: Date | null
+    github_access_token: string | null
+    github_refresh_token: string | null
+    github_token_expires_at: Date | null
+    github_user_id: string | null
+    github_username: string | null
 }
 
 export const userModel = {
