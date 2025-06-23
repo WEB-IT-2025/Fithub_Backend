@@ -5,6 +5,9 @@ import tseslint from 'typescript-eslint'
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
+    {
+        ignores: ['**/node_modules/', '**/dist/', 'dist/**/*'],
+    },
     { files: ['**/*.{js,mjs,cjs,ts}'] },
     { languageOptions: { globals: globals.node } },
     pluginJs.configs.recommended,
@@ -17,6 +20,5 @@ export default [
             '@typescript-eslint/no-explicit-any': 'warn',
             '@typescript-eslint/no-unused-vars': 'warn',
         },
-        ignores: ['**/node_modules/', '**/dist/'],
     },
 ]
