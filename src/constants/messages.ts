@@ -14,8 +14,14 @@ export const AUTH_MESSAGES = {
     // Session tokens
     TEMP_SESSION_INVALID: '無効または期限切れの一時セッショントークンです',
     SESSION_TOKEN_INVALID: '無効なセッショントークンです',
+    SESSION_EXPIRED: 'セッションの有効期限が切れました。再度ログインしてください。',
     TOKEN_NOT_FOUND: 'トークンが見つかりません',
     TOKEN_REQUIRED: 'Authorization Bearerトークンが必要です',
+
+    // OAuth
+    INVALID_REQUEST_PARAMETERS: 'リクエストパラメータが無効です',
+    OAUTH_CODE_REQUIRED: 'OAuth認証コードが必要です',
+    OAUTH_ERROR: 'OAuth認証エラーが発生しました',
 
     // GitHub linking
     GITHUB_CODE_REQUIRED: 'GitHub認証コードが必要です',
