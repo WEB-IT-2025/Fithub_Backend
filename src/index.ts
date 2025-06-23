@@ -39,6 +39,10 @@ app.get('/terms', (_, res) => {
     res.sendFile(path.join(__dirname, '../public/terms.html'))
 })
 
+app.get('/google93eec2af99c65e22', (_, res) => {
+    res.sendFile(path.join(__dirname, '../public/google93eec2af99c65e22.html'))
+})
+
 // Middleware to handle 404 errors
 app.use((req, res) => {
     res.status(404).json({
