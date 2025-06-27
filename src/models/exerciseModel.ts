@@ -2,7 +2,7 @@ import { RowDataPacket } from 'mysql2'
 import db from '~/config/database'
 
 interface ExerciseRow extends RowDataPacket {
-    user_id: string
+    user_id: string // VARCHAR扱い
     day: string // TIMESTAMP型
     exercise_quantity: string // VARCHAR扱い
 }
