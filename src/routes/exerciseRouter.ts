@@ -1,7 +1,7 @@
 // src/routes/exerciseRouter.ts
 import express from 'express'
 import { getDailyExerciseSummary, getHourlyExerciseSummary, recordExercise } from '~/controllers/exerciseController'
-import { requireCompleteUser } from '~/middlewares/authMiddleware'
+import { requireCompleteUser } from '~/middlewares/requireCompleteUser'
 import { handleValidationErrors } from '~/middlewares/validation'
 import {
     validateDailySummaryRequest,
