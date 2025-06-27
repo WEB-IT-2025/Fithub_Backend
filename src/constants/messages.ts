@@ -49,3 +49,7 @@ export const VALIDATION_MESSAGES = {
     EMAIL_INVALID: 'メールアドレスの形式が無効です',
     TOKEN_FORMAT_INVALID: 'トークンの形式が無効です',
 }
+
+export const EXERCISE_MESSAGES = {
+    RECORD_SUCCESS: '運動量を記録しました',
+}

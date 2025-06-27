@@ -130,4 +130,13 @@ export const userModel = {
             is_existing_user: existingUser !== null,
         }
     },
+
+    /**
+     * ユーザーのポイントを加算する
+     * @param userId - 対象ユーザーのID
+     * @param point - 加算するポイント数
+     */
+    async addPoint(userId: string, point: number): Promise<void> {
+        await db.query(`UPDATE USERS SET point = point + ? WHERE user_id = ?`, [point, userId])
+    },
 }
