@@ -2,8 +2,20 @@
 
 ## フロー概要
 ```
-Firebase認証 → Google OAuth → GitHub OAuth → アカウント作成完了
+1. Firebase認証 → Firebase tokenを取得
+2. Firebase tokenを送信 → Google OAuth URLを受信
+3. Google OAuth URLを開く → GitHub OAuth URLを受信  
+4. GitHub OAuth URLを開く → アカウント作成完了
 ```
+
+### フロントエンド実装の流れ
+1. **Firebase認証**: Firebase SDKでログイン、tokenを取得
+2. **API呼び出し**: `/api/auth/verify-firebase`にtoken送信
+3. **OAuth処理**: 
+   - 新規ユーザー → `google_oauth_url`を開く
+   - 既存ユーザー → `session_token`でログイン完了
+4. **Google OAuth完了後**: `github_oauth_url`を開く
+5. **GitHub OAuth完了後**: `session_token`でアカウント作成完了
 
 ---
 
@@ -46,11 +58,15 @@ Firebase認証 → Google OAuth → GitHub OAuth → アカウント作成完了
 }
 ```
 
+> **フロントエンド**: `google_oauth_url`をwebview/popupで開く
+
 ---
 
 ## 2. Google OAuth コールバック
 
 **GET** `/api/auth/google/callback?code={code}&state={state}`
+
+> **注意**: このAPIはOAuth callbackで自動実行される
 
 ### Response
 ```json
@@ -69,11 +85,15 @@ Firebase認証 → Google OAuth → GitHub OAuth → アカウント作成完了
 }
 ```
 
+> **フロントエンド**: `github_oauth_url`をwebview/popupで開く
+
 ---
 
 ## 3. GitHub OAuth コールバック (完了)
 
 **GET** `/api/auth/github/callback?code={code}&state={state}`
+
+> **注意**: このAPIはOAuth callbackで自動実行される
 
 ### Response
 ```json
@@ -100,6 +120,25 @@ Firebase認証 → Google OAuth → GitHub OAuth → アカウント作成完了
   }
 }
 ```
+
+> **フロントエンド**: `session_token`を保存してログイン完了
+
+---
+
+## 重要な注意事項
+
+### OAuth URL処理
+- **Web**: `window.open(oauthUrl)` でpopup表示
+- **Mobile**: WebViewやSafariViewController/Chrome Custom Tabsでpopup表示
+- **React Native**: `WebBrowser.openAuthSessionAsync()`等使用
+
+### セッション管理
+- `temp_session_token`: OAuth中の一時的なトークン
+- `session_token`: ログイン完了後の永続トークン
+
+### フロントエンド設定
+- **Firebase**: 通常のFirebase設定のみ必要
+- **GitHub OAuth**: フロントエンド設定不要（全てバックエンドで処理）
 
 ---
 
