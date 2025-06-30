@@ -46,7 +46,9 @@ export const googleOAuthService = {
                 client_secret: ENV.GOOGLE_CLIENT_SECRET!,
                 code,
                 grant_type: 'authorization_code',
-                redirect_uri: `${ENV.HOST_NAME === 'localhost' ? 'http' : 'https'}://${ENV.HOST_NAME}:${ENV.PORT}/api/auth/google/callback`,
+                redirect_uri:
+                    ENV.GOOGLE_CALLBACK_URL ||
+                    `${ENV.HOST_NAME === 'localhost' ? 'http' : 'https'}://${ENV.HOST_NAME}:${ENV.PORT}/api/auth/google/callback`,
             }
 
             const response = await axios.post(tokenUrl, params, {
