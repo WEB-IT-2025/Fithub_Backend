@@ -11,11 +11,12 @@ import { tempOAuthStorage } from '~/services/tempOAuthStorage'
 // POST /api/auth/verify-firebase
 export const verifyFirebase = asyncHandler(async (req: Request, res: Response) => {
     const startTime = Date.now()
-    const { firebase_id_token } = req.body
+    const { firebase_id_token, google_access_token } = req.body
 
     console.log('🔥 [AUTH] Firebase verification started', {
         timestamp: new Date().toISOString(),
         hasToken: !!firebase_id_token,
+        hasGoogleToken: !!google_access_token,
         tokenLength: firebase_id_token ? firebase_id_token.length : 0,
     })
 
@@ -61,13 +62,91 @@ export const verifyFirebase = asyncHandler(async (req: Request, res: Response) =
         firebase_uid: verificationResult.firebase_uid,
         user_name: verificationResult.user_name,
         email: verificationResult.email,
+        hasGoogleToken: !!google_access_token,
     })
 
-    // New user - generate temp session token and Google OAuth URL
+    // If we have Google access token, skip Google OAuth step
+    if (google_access_token) {
+        console.log('🎯 [AUTH] Google access token provided, skipping Google OAuth')
+
+        try {
+            // Get Google user info to verify and store
+            const googleUserInfo = await googleOAuthService.getUserInfo(google_access_token)
+
+            console.log('✅ [AUTH] Google user info retrieved', {
+                google_id: googleUserInfo.id,
+                name: googleUserInfo.name,
+                email: googleUserInfo.email,
+            })
+
+            // Verify that Google email matches Firebase email (security check)
+            if (verificationResult.email && googleUserInfo.email !== verificationResult.email) {
+                console.error('❌ [AUTH] Email mismatch detected', {
+                    firebaseEmail: verificationResult.email,
+                    googleEmail: googleUserInfo.email,
+                })
+                return res.status(400).json({
+                    success: false,
+                    message: 'Google OAuth認証のメールアドレスがFirebase認証と一致しません。',
+                    error_code: 'EMAIL_MISMATCH',
+                })
+            }
+
+            // Store Google OAuth data temporarily for GitHub callback
+            const tempSessionToken = firebaseAuthService.generateTempSessionToken(verificationResult)
+            tempOAuthStorage.storeGoogleOAuth(
+                verificationResult.firebase_uid,
+                {
+                    access_token: google_access_token,
+                    refresh_token: '', // May not be available from Firebase
+                    expires_in: 3600, // Default expiry
+                },
+                {
+                    google_id: googleUserInfo.id,
+                    name: googleUserInfo.name,
+                    email: googleUserInfo.email,
+                    picture: googleUserInfo.picture,
+                }
+            )
+
+            // Generate GitHub OAuth URL directly
+            const githubOAuthUrl = githubOAuthService.generateGitHubOAuthUrl(tempSessionToken)
+
+            console.log('🔗 [AUTH] GitHub OAuth URL generated (skipped Google)', {
+                firebase_uid: verificationResult.firebase_uid,
+                totalDuration: Date.now() - startTime + 'ms',
+            })
+
+            return res.status(200).json({
+                success: true,
+                message: 'Firebase認証成功。GitHub認証を開始してください。',
+                is_new_user: true,
+                temp_session_token: tempSessionToken,
+                github_oauth_url: githubOAuthUrl,
+                next_step: 'redirect_to_github_oauth',
+                google_data: {
+                    google_id: googleUserInfo.id,
+                    name: googleUserInfo.name,
+                    email: googleUserInfo.email,
+                    picture: googleUserInfo.picture,
+                },
+            })
+        } catch (error) {
+            console.error('❌ [AUTH] Google access token validation failed', {
+                error: error instanceof Error ? error.message : String(error),
+                firebase_uid: verificationResult.firebase_uid,
+            })
+
+            // Fallback to Google OAuth if access token is invalid
+            console.log('🔄 [AUTH] Falling back to Google OAuth flow')
+        }
+    }
+
+    // Fallback: Generate Google OAuth URL (if no access token provided)
     const tempSessionToken = firebaseAuthService.generateTempSessionToken(verificationResult)
     const googleOAuthUrl = firebaseAuthService.generateGoogleOAuthUrl(tempSessionToken)
 
-    console.log('🔗 [AUTH] Google OAuth URL generated', {
+    console.log('🔗 [AUTH] Google OAuth URL generated (fallback)', {
         firebase_uid: verificationResult.firebase_uid,
         tempTokenLength: tempSessionToken.length,
         totalDuration: Date.now() - startTime + 'ms',
