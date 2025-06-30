@@ -1,6 +1,7 @@
 // src/services/firebaseAuthService.ts
 import jwt from 'jsonwebtoken'
 import admin from '~/config/firebase'
+import { ENV } from '~/config/loadEnv'
 import { FirebaseVerificationResult, userModel } from '~/models/userModel'
 
 const JWT_SECRET = process.env.JWT_SECRET!
@@ -87,5 +88,20 @@ export const firebaseAuthService = {
         }
 
         return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+    },
+
+    // Generate Google OAuth URL with Fitness scopes
+    generateGoogleOAuthUrl(tempSessionToken: string): string {
+        const params = new URLSearchParams({
+            client_id: ENV.GOOGLE_CLIENT_ID || '',
+            redirect_uri: `${ENV.HOST_NAME === 'localhost' ? 'http' : 'https'}://${ENV.HOST_NAME}:${ENV.PORT}/api/auth/google/callback`,
+            response_type: 'code',
+            scope: 'openid email profile https://www.googleapis.com/auth/fitness.activity.read',
+            access_type: 'offline',
+            prompt: 'consent',
+            state: tempSessionToken, // Pass temp token as state for security
+        })
+
+        return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
     },
 }

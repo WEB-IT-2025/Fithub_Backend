@@ -18,6 +18,27 @@ export interface FirebaseVerificationResult {
     is_existing_user: boolean
 }
 
+export interface GoogleOAuthData {
+    access_token: string
+    refresh_token?: string
+    expires_in: number
+}
+
+export interface GitHubOAuthData {
+    access_token: string
+    github_user_id: number
+    github_username: string
+}
+
+export interface CompleteUserCreationData {
+    firebase_uid: string
+    user_name: string
+    user_icon: string
+    email?: string
+    google_oauth: GoogleOAuthData
+    github_oauth: GitHubOAuthData
+}
+
 export interface CompleteUser {
     user_id: string
     user_name: string
@@ -55,35 +76,35 @@ export const userModel = {
     },
 
     async checkGithubIdExists(githubId: string): Promise<boolean> {
-        const [rows] = await db.query<RowDataPacket[]>('SELECT user_id FROM USERS WHERE git_id = ?', [githubId])
+        const [rows] = await db.query<RowDataPacket[]>('SELECT user_id FROM USERS WHERE github_user_id = ?', [githubId])
         return rows.length > 0
     },
 
-    async createCompleteUser(userData: {
-        firebaseUid: string
-        userName: string
-        userIcon: string
-        githubId: string
-        githubAccessToken: string
-        googleAccessToken?: string
-        googleRefreshToken?: string
-    }): Promise<void> {
-        const { firebaseUid, userName, userIcon, githubId, githubAccessToken, googleAccessToken, googleRefreshToken } =
-            userData
+    // Create complete user with all OAuth data
+    async createCompleteUser(userData: CompleteUserCreationData): Promise<void> {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { firebase_uid, user_name, user_icon, email, google_oauth, github_oauth } = userData
+
+        // Calculate Google token expiry
+        const googleExpiresAt = new Date(Date.now() + google_oauth.expires_in * 1000)
 
         await db.query(
             `INSERT INTO USERS 
-            (user_id, user_name, user_icon, point, git_access, git_id, google_access_token, google_refresh_token) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            (user_id, user_name, user_icon, point, 
+             google_access_token, google_refresh_token, google_token_expires_at,
+             github_access_token, github_user_id, github_username) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-                firebaseUid, // user_id = firebase_uid
-                userName,
-                userIcon,
+                firebase_uid, // user_id = firebase_uid
+                user_name,
+                user_icon,
                 0, // initial points
-                githubAccessToken,
-                githubId,
-                googleAccessToken || null,
-                googleRefreshToken || null,
+                google_oauth.access_token,
+                google_oauth.refresh_token || null,
+                googleExpiresAt,
+                github_oauth.access_token,
+                github_oauth.github_user_id.toString(),
+                github_oauth.github_username,
             ]
         )
     },
@@ -101,13 +122,35 @@ export const userModel = {
 
     // Get user by GitHub ID (for login)
     async getUserByGithubId(githubId: string): Promise<CompleteUser | null> {
-        const [rows] = await db.query<UserRow[]>('SELECT * FROM USERS WHERE git_id = ?', [githubId])
+        const [rows] = await db.query<UserRow[]>('SELECT * FROM USERS WHERE github_user_id = ?', [githubId])
 
         if (rows.length === 0) {
             return null
         }
 
         return rows[0]
+    },
+
+    // Update Google OAuth tokens for existing user
+    async updateGoogleOAuthTokens(userId: string, googleData: GoogleOAuthData): Promise<void> {
+        const expiresAt = new Date(Date.now() + googleData.expires_in * 1000)
+
+        await db.query(
+            `UPDATE USERS 
+             SET google_access_token = ?, google_refresh_token = ?, google_token_expires_at = ?
+             WHERE user_id = ?`,
+            [googleData.access_token, googleData.refresh_token || null, expiresAt, userId]
+        )
+    },
+
+    // Update GitHub OAuth tokens for existing user
+    async updateGitHubOAuthTokens(userId: string, githubData: GitHubOAuthData): Promise<void> {
+        await db.query(
+            `UPDATE USERS 
+             SET github_access_token = ?, github_user_id = ?, github_username = ?
+             WHERE user_id = ?`,
+            [githubData.access_token, githubData.github_user_id.toString(), githubData.github_username, userId]
+        )
     },
 
     // Verify Firebase user and check if already exists (for verify-firebase step)
