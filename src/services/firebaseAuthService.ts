@@ -94,7 +94,7 @@ export const firebaseAuthService = {
     generateGoogleOAuthUrl(tempSessionToken: string): string {
         const params = new URLSearchParams({
             client_id: ENV.GOOGLE_CLIENT_ID || '',
-            redirect_uri: `${ENV.HOST_NAME === 'localhost' ? 'http' : 'https'}://${ENV.HOST_NAME}:${ENV.PORT}/api/auth/google/callback`,
+            redirect_uri: ENV.GOOGLE_CALLBACK_URL,
             response_type: 'code',
             scope: 'openid email profile https://www.googleapis.com/auth/fitness.activity.read',
             access_type: 'offline',
