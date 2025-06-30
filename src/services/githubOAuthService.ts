@@ -49,7 +49,7 @@ export const githubOAuthService = {
     generateGitHubOAuthUrl(tempSessionToken: string): string {
         const params = new URLSearchParams({
             client_id: ENV.GITHUB_CLIENT_ID || '',
-            redirect_uri: `${ENV.HOST_NAME === 'localhost' ? 'http' : 'https'}://${ENV.HOST_NAME}:${ENV.PORT}/api/auth/github/callback`,
+            redirect_uri: ENV.GITHUB_CALLBACK_URL,
             scope: 'read:user user:email repo', // Basic profile + email + repo access for contributions
             state: tempSessionToken, // Pass temp token as state for security
         })
