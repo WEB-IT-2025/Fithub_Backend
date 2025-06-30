@@ -10,15 +10,15 @@ interface ExerciseRow extends RowDataPacket {
 export const exerciseModel = {
     async upsertExercise(userId: string, day: string, quantity: number): Promise<void> {
         await db.query(
-            `INSERT INTO exercis (user_id, day, exercise_quantity)
+            `INSERT INTO EXERCISE (user_id, day, exercise_quantity)
              VALUES (?, ?, ?)
-             ON DUPLICATE KEY UPDATE exercise_quantity = ?`,
-            [userId, day, quantity.toString(), quantity.toString()]
+             ON DUPLICATE KEY UPDATE exercise_quantity = CAST(exercise_quantity AS UNSIGNED) + VALUES(exercise_quantity)`,
+            [userId, day, quantity.toString()]
         )
     },
 
     async getExercise(userId: string, day: string): Promise<ExerciseRow | null> {
-        const [rows] = await db.query<ExerciseRow[]>(`SELECT * FROM exercis WHERE user_id = ? AND day = ?`, [
+        const [rows] = await db.query<ExerciseRow[]>(`SELECT * FROM EXERCISE WHERE user_id = ? AND day = ?`, [
             userId,
             day,
         ])
@@ -28,7 +28,7 @@ export const exerciseModel = {
     async getHourlySummary(userId: string, date: string): Promise<{ hour: number; steps: number }[]> {
         const [rows] = await db.query<RowDataPacket[]>(
             `SELECT HOUR(day) AS hour, SUM(CAST(exercise_quantity AS UNSIGNED)) AS steps
-             FROM exercis
+             FROM EXERCISE
              WHERE user_id = ? AND DATE(day) = ?
              GROUP BY hour
              ORDER BY hour`,
@@ -47,7 +47,7 @@ export const exerciseModel = {
     ): Promise<{ date: string; steps: number }[]> {
         const [rows] = await db.query<RowDataPacket[]>(
             `SELECT DATE(day) AS date, SUM(CAST(exercise_quantity AS UNSIGNED)) AS steps
-             FROM exercis
+             FROM EXERCISE
              WHERE user_id = ? AND DATE(day) BETWEEN ? AND ?
              GROUP BY date
              ORDER BY date`,

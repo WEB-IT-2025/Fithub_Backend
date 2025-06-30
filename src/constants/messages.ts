@@ -15,8 +15,8 @@ export const AUTH_MESSAGES = {
     TEMP_SESSION_INVALID: '無効または期限切れの一時セッショントークンです',
     SESSION_TOKEN_INVALID: '無効なセッショントークンです',
     TOKEN_NOT_FOUND: 'トークンが見つかりません',
-    TOKEN_REQUIRED: 'Authorization Bearerトークンが必要です',
 
+    NO_PERMISSION: 'この操作を行う権限がありません',
     // GitHub linking
     GITHUB_CODE_REQUIRED: 'GitHub認証コードが必要です',
     GITHUB_LINKING_SUCCESS: 'GitHubアカウントとの連携が完了しました',
@@ -52,4 +52,13 @@ export const VALIDATION_MESSAGES = {
 
 export const EXERCISE_MESSAGES = {
     RECORD_SUCCESS: '運動量を記録しました',
+}
+//ミッション
+export const MISSION_MESSAGES = {
+    CREATED: 'ミッション情報を登録しました。',
+    DELETED: 'ミッションを削除しました。',
+    NOT_FOUND: 'ミッションが見つかりません。',
+    NO_PERMISSION: 'この操作を行う権限がありません。',
+    STATUS_ERROR: 'ミッション情報の取得に失敗しました。',
+    NOT_CLEARED: 'ミッションをクリアしていません。',
 }

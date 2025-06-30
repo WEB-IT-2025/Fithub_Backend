@@ -73,7 +73,7 @@ CREATE TABLE group_member (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
-CREATE TABLE exercis (
+CREATE TABLE exercise (
     user_id VARCHAR(20) NOT NULL,
     day TIMESTAMP NOT NULL,
     exercise_quantity VARCHAR(255) NOT NULL,
@@ -93,17 +93,16 @@ CREATE TABLE mission (
     mission_id VARCHAR(255) PRIMARY KEY,
     mission_name VARCHAR(50) NOT NULL,
     mission_goal VARCHAR(255) NOT NULL,
-    reward_content VARCHAR(255) NOT NULL,
+    reward_content INT NOT NULL,
     mission_type VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE mission_cleard (
     user_id VARCHAR(255) NOT NULL,
     mission_id VARCHAR(255) NOT NULL,
-    mission_type VARCHAR(255) NOT NULL,
     mission_goal INT NOT NULL,
     current_status INT,
-    clear_status BOOLEAN,
+    clear_status BOOLEAN NOT NULL,
     clear_time TIMESTAMP,
     PRIMARY KEY (user_id, mission_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id),
