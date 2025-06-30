@@ -51,7 +51,8 @@ export const getHourlyExerciseSummary = asyncHandler(async (req: Request, res: R
         data: summary,
     })
 })
-
+// TODO: 24時間ごと集計機能の実装
+// 日ごと歩数集計API
 export const getDailyExerciseSummary = asyncHandler(async (req: Request, res: Response) => {
     const { user_id, start_date, end_date } = req.query
 

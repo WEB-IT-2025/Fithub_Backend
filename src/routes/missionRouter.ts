@@ -15,21 +15,21 @@ import { validateMissionIdParam, validateMissionRegistration } from '~/middlewar
 const router = express.Router()
 
 // ミッション一覧
-router.get('/missions', getAllMissions)
+router.get('/list', getAllMissions)
 
 // ミッション登録（管理者）
-router.post('/missions/:mission_id', requireAdmin, validateMissionRegistration, handleValidationErrors, registerMission)
+router.post('/admin/mission_create', requireAdmin, validateMissionRegistration, handleValidationErrors, registerMission)
 
 // ミッション削除（管理者）
-router.delete('/missions/:mission_id', requireAdmin, validateMissionIdParam, handleValidationErrors, deleteMission)
+router.delete('/admin/mission_delete', requireAdmin, validateMissionIdParam, handleValidationErrors, deleteMission)
 
 // ミッション状況取得
-router.get('/missions/status/:user_id', requireCompleteUser, handleValidationErrors, getUserMissionStatus)
+router.get('/status', requireCompleteUser, handleValidationErrors, getUserMissionStatus)
 
 // ミッションクリア
-router.post('/missions/clear/:user_id/:mission_id', requireCompleteUser, handleValidationErrors, clearUserMission)
+router.post('/clear', requireCompleteUser, handleValidationErrors, clearUserMission)
 
 // ミッションクリア取り消し（管理者）
-router.post('/missions/revert/:user_id/:mission_id', requireAdmin, handleValidationErrors, revertUserMission)
+router.post('/admin/revert', requireAdmin, handleValidationErrors, revertUserMission)
 
 export default router

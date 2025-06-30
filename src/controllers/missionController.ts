@@ -1,6 +1,9 @@
 import { Request, Response } from 'express'
 import { asyncHandler } from '~/middlewares/asyncHandler'
 import { missionModel } from '~/models/missionModel'
+import { MissionInsertDTO } from '~/models/missionModel'
+
+// MissionRow を export する必要あり
 
 export const getAllMissions = asyncHandler(async (req: Request, res: Response) => {
     const missions = await missionModel.getAllMissions()
@@ -8,46 +11,85 @@ export const getAllMissions = asyncHandler(async (req: Request, res: Response) =
 })
 
 export const registerMission = asyncHandler(async (req: Request, res: Response) => {
-    const mission = req.body
+    const { mission_id, mission_name, mission_content, reward_content, mission_type } = req.body
+
+    if (!mission_id || !mission_name || !mission_content || reward_content == null || !mission_type) {
+        return res.status(400).json({ error: 'すべてのミッション情報を入力してください' })
+    }
+
+    const mission: MissionInsertDTO = { mission_id, mission_name, mission_content, reward_content, mission_type }
+
     await missionModel.insertMission(mission)
     res.status(201).json({ message: 'ミッション情報を登録しました。' })
 })
 
 export const deleteMission = asyncHandler(async (req: Request, res: Response) => {
     const { mission_id } = req.params
-    const success = await missionModel.deleteMission(mission_id)
 
+    if (!mission_id) {
+        return res.status(400).json({ error: 'mission_idが必要です' })
+    }
+
+    const success = await missionModel.deleteMission(mission_id)
     if (success) {
         res.status(200).json({ message: 'ミッションを削除しました。' })
     } else {
-        res.status(400).json({ error: 'ミッションが見つかりません。' })
+        res.status(404).json({ error: 'ミッションが見つかりません。' })
     }
 })
 
 export const getUserMissionStatus = asyncHandler(async (req: Request, res: Response) => {
     const { user_id } = req.params
+
+    if (!user_id) {
+        return res.status(400).json({ error: 'user_idが必要です' })
+    }
+
     const status = await missionModel.getUserMissionStatus(user_id)
     res.status(200).json(status)
 })
 
 export const clearUserMission = asyncHandler(async (req: Request, res: Response) => {
     const { user_id, mission_id } = req.params
-    const cleared = await missionModel.markMissionCleared(user_id, mission_id)
 
+    if (!user_id || !mission_id) {
+        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
+    }
+
+    const cleared = await missionModel.markMissionCleared(user_id, mission_id)
     if (cleared) {
         res.status(200).json({ message: 'ミッションをクリアしました。' })
     } else {
-        res.status(400).json({ message: 'ミッションがありません' })
+        res.status(404).json({ error: 'ミッションが見つかりません。' })
     }
 })
 
 export const revertUserMission = asyncHandler(async (req: Request, res: Response) => {
     const { user_id, mission_id } = req.params
-    const reverted = await missionModel.revertMissionCleared(user_id, mission_id)
 
+    if (!user_id || !mission_id) {
+        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
+    }
+
+    const reverted = await missionModel.revertMissionCleared(user_id, mission_id)
     if (reverted) {
         res.status(200).json({ message: 'ミッションクリアを取り消しました。' })
     } else {
-        res.status(400).json({ message: 'ミッションがありません' })
+        res.status(404).json({ error: 'ミッションが見つかりません。' })
+    }
+})
+
+export const clearMissionAndReward = asyncHandler(async (req: Request, res: Response) => {
+    const { user_id, mission_id } = req.params
+
+    if (!user_id || !mission_id) {
+        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
+    }
+
+    const success = await missionModel.markMissionClearedAndReward(user_id, mission_id)
+    if (success) {
+        res.status(200).json({ message: 'ミッションをクリアし、ポイントを付与しました。' })
+    } else {
+        res.status(400).json({ error: 'ミッションクリアに失敗しました。' })
     }
 })
