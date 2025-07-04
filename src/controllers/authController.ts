@@ -447,7 +447,11 @@ export const githubOAuthCallback = asyncHandler(async (req: Request, res: Respon
             tempSessionData.user_name
         )
 
-        return res.status(200).json({
+        // Detect if this is a web request (popup) or mobile app request
+        const userAgent = req.headers['user-agent'] || ''
+        const isWebRequest = userAgent.includes('Mozilla') && !userAgent.includes('Mobile')
+
+        const responseData = {
             success: true,
             message: 'アカウント作成が完了しました！Fithubへようこそ！',
             session_token: fullSessionToken,
@@ -480,7 +484,22 @@ export const githubOAuthCallback = asyncHandler(async (req: Request, res: Respon
                 github_repos: userRepos.length,
                 // google_fitness_data: would be fetched in real implementation
             },
-        })
+        }
+
+        // For web requests (popup), redirect to callback page with data
+        if (isWebRequest) {
+            const callbackUrl = new URL('/auth/callback', process.env.FRONTEND_URL || 'http://localhost:3001')
+            callbackUrl.searchParams.set('success', 'true')
+            callbackUrl.searchParams.set('message', encodeURIComponent(responseData.message))
+            callbackUrl.searchParams.set('session_token', fullSessionToken)
+            callbackUrl.searchParams.set('user_data', encodeURIComponent(JSON.stringify(responseData.user)))
+            callbackUrl.searchParams.set('oauth_data', encodeURIComponent(JSON.stringify(responseData.oauth_data)))
+
+            return res.redirect(callbackUrl.toString())
+        }
+
+        // For mobile/API requests, return JSON
+        return res.status(200).json(responseData)
     } catch (error) {
         console.error('❌ [GITHUB] OAuth callback error', {
             error: error instanceof Error ? error.message : String(error),

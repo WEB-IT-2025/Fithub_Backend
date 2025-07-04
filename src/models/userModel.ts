@@ -92,17 +92,18 @@ export const userModel = {
             `INSERT INTO USERS 
             (user_id, user_name, user_icon, point, 
              google_access_token, google_refresh_token, google_token_expires_at,
-             github_access_token, github_user_id, github_username) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             github_access_token, github_refresh_token, github_user_id, github_username) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 firebase_uid, // user_id = firebase_uid
                 user_name,
                 user_icon,
                 0, // initial points
                 google_oauth.access_token,
-                google_oauth.refresh_token || null,
+                google_oauth.refresh_token || '',
                 googleExpiresAt,
                 github_oauth.access_token,
+                '', // GitHub OAuth usually doesn't provide refresh_token, use empty string
                 github_oauth.github_user_id.toString(),
                 github_oauth.github_username,
             ]
@@ -139,7 +140,7 @@ export const userModel = {
             `UPDATE USERS 
              SET google_access_token = ?, google_refresh_token = ?, google_token_expires_at = ?
              WHERE user_id = ?`,
-            [googleData.access_token, googleData.refresh_token || null, expiresAt, userId]
+            [googleData.access_token, googleData.refresh_token || '', expiresAt, userId]
         )
     },
 
