@@ -14,6 +14,7 @@ import {
     validateClearMissionBody,
     validateMissionIdParam,
     validateMissionRegistration,
+    validateRevertMissionBody,
 } from '~/middlewares/validation/missionValidation'
 
 const router = express.Router()
@@ -34,6 +35,6 @@ router.get('/status', requireCompleteUser, handleValidationErrors, getUserMissio
 router.post('/clear', requireCompleteUser, validateClearMissionBody, handleValidationErrors, clearUserMission)
 
 // ミッションクリア取り消し（管理者）
-router.post('/admin/revert', requireAdmin, handleValidationErrors, revertUserMission)
+router.put('/admin/revert', requireAdmin, validateRevertMissionBody, handleValidationErrors, revertUserMission)
 
 export default router

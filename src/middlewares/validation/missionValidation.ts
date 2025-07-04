@@ -13,3 +13,7 @@ export const validateClearMissionBody = [
     body('user_id').notEmpty().withMessage('user_idは必須です'),
     body('mission_id').notEmpty().withMessage('mission_idは必須です'),
 ]
+export const validateRevertMissionBody = [
+    body('user_id').notEmpty().withMessage('user_idは必須です'),
+    body('mission_id').notEmpty().withMessage('mission_idは必須です'),
+]

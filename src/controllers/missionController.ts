@@ -66,10 +66,12 @@ export const clearUserMission = asyncHandler(async (req: Request, res: Response)
 })
 
 export const revertUserMission = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, mission_id } = req.params
+    console.log('リクエストボディ:', req.body)
+
+    const { user_id, mission_id } = req.body
 
     if (!user_id || !mission_id) {
-        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
+        return res.status(400).json({ error: 'user_idとmission_idは必須です' })
     }
 
     const reverted = await missionModel.revertMissionCleared(user_id, mission_id)
