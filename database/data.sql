@@ -19,8 +19,8 @@ DROP TABLE IF EXISTS USERS;
 -- ============================
 
 CREATE TABLE USERS (
-    user_id VARCHAR(255) PRIMARY KEY,
-    user_name VARCHAR(20) NOT NULL,
+    user_id VARCHAR(64) PRIMARY KEY,
+    user_name VARCHAR(128) NOT NULL,
     user_icon VARCHAR(255),
     point INT NOT NULL,
     google_access_token TEXT NOT NULL,
@@ -156,9 +156,9 @@ INSERT INTO THRESHOLD VALUES (1, 1, 1, 1);
 -- USERS - Realistic test data for token refresh scenarios
 INSERT INTO USERS VALUES
 -- User 1: Token expires in 30 minutes (needs refresh soon)
-('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 
- 'HUYNH NGUYEN DUC', 
- 'https://lh3.googleusercontent.com/a/ACg8ocLRFoVKVi1JycSuTmOIrmdIJAto0B3GYK-b_DLITrmJr-YwRF4=s96-c', 
+('test_user_001_abc123def456ghi789', 
+ 'TEST USER ONE', 
+ 'https://lh3.googleusercontent.com/a/default-test-user-1', 
  1500,
  'ya29.a0AWY7CknVGc8FakeTokenExample1234567890abcdef',
  'refresh_token_1_realistic_example_abcd1234567890',
@@ -166,8 +166,8 @@ INSERT INTO USERS VALUES
  'gho_GitHubPersonalAccessToken123456789abcdef',
  '',
  NULL,
- '115116373',
- 'huynhnguyen1906'),
+ '123456789',
+ 'test-user-one'),
 
 -- User 2: Token expired 1 hour ago (needs immediate refresh)
 ('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 
