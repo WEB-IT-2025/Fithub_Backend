@@ -2,6 +2,7 @@ import express from 'express'
 import path from 'path'
 
 import { ENV } from './config/loadEnv'
+import publicRoutes from './routes/public'
 import webRoutes from './routes/web'
 
 const app = express()
@@ -30,14 +31,8 @@ app.use(express.static(path.join(__dirname, '../public')))
 // API routes
 app.use('/api', webRoutes)
 
-// Static pages for OAuth compliance
-app.get('/privacy-policy', (_, res) => {
-    res.sendFile(path.join(__dirname, '../public/privacy-policy.html'))
-})
-
-app.get('/terms', (_, res) => {
-    res.sendFile(path.join(__dirname, '../public/terms.html'))
-})
+// Public routes (static pages)
+app.use('/', publicRoutes)
 
 // Middleware to handle 404 errors
 app.use((req, res) => {
