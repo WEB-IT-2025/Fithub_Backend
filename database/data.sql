@@ -1,272 +1,304 @@
-/* =========================== */
-/* 0. 事前処理                 */
-/* =========================== */
-SET FOREIGN_KEY_CHECKS = 0;
-
-DROP TABLE IF EXISTS GROUP_MEMBER;
-DROP TABLE IF EXISTS MISSION_CLEARD;
-DROP TABLE IF EXISTS CONTRIBUTIONS;
-DROP TABLE IF EXISTS EXERCISE;
-DROP TABLE IF EXISTS USERS_PETS;
+-- ============================
+-- 🚨 1. DROP TABLES IF EXISTS
+-- ============================
 DROP TABLE IF EXISTS USERS_ITEMS;
-DROP TABLE IF EXISTS GROUP_INFO;
+DROP TABLE IF EXISTS USERS_PETS;
+DROP TABLE IF EXISTS EXERCISE;
+DROP TABLE IF EXISTS CONTRIBUTIONS;
+DROP TABLE IF EXISTS MISSION_CLEARD;
 DROP TABLE IF EXISTS MISSION;
-DROP TABLE IF EXISTS ITEM;
+DROP TABLE IF EXISTS ITEMS;
+DROP TABLE IF EXISTS GROUP_MEMBER;
+DROP TABLE IF EXISTS GROUP_INFO;
 DROP TABLE IF EXISTS PETS;
 DROP TABLE IF EXISTS THRESHOLD;
 DROP TABLE IF EXISTS USERS;
 
-SET FOREIGN_KEY_CHECKS = 1;
+-- ============================
+-- 🧱 2. CREATE TABLES (PK → FK順)
+-- ============================
 
-/* =========================== */
-/* 1. 親テーブル               */
-/* =========================== */
 CREATE TABLE USERS (
-  user_id VARCHAR(255) PRIMARY KEY,
-  user_name VARCHAR(20) NOT NULL,
-  user_icon VARCHAR(255),
-  point INT NOT NULL,
-  google_access_token TEXT,
-  google_refresh_token TEXT,
-  google_token_expires_at DATETIME,
-  github_access_token TEXT,
-  github_refresh_token TEXT,
-  github_token_expires_at DATETIME,
-  github_user_id VARCHAR(255),
-  github_username VARCHAR(255)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    user_id VARCHAR(255) PRIMARY KEY,
+    user_name VARCHAR(20) NOT NULL,
+    user_icon VARCHAR(255),
+    point INT NOT NULL,
+    google_access_token TEXT NOT NULL,
+    google_refresh_token TEXT NOT NULL,
+    google_token_expires_at TIMESTAMP NOT NULL,
+    github_access_token TEXT NOT NULL,
+    github_refresh_token TEXT NOT NULL,
+    github_token_expires_at TIMESTAMP,
+    github_user_id VARCHAR(255) NOT NULL,
+    github_username VARCHAR(255) NOT NULL
+);
 
 CREATE TABLE PETS (
-  pet_id           VARCHAR(255) PRIMARY KEY,
-  pet_name         VARCHAR(20)  NOT NULL,
-  pet_image_folder VARCHAR(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    pet_id VARCHAR(255) PRIMARY KEY,
+    pet_name VARCHAR(20) NOT NULL,
+    pet_image_folder VARCHAR(255) NOT NULL
+);
 
-CREATE TABLE ITEM (
-  item_id            VARCHAR(255) PRIMARY KEY,
-  item_name          VARCHAR(50)  NOT NULL,
-  item_point         INT          NOT NULL,
-  sold_count         INT          NOT NULL,
-  item_image_folder  VARCHAR(255) NOT NULL,
-  item_create_day    TIMESTAMP    NOT NULL,
-  item_delete_day    TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE MISSION (
-  mission_id      VARCHAR(255) PRIMARY KEY,
-  mission_name    VARCHAR(50)  NOT NULL,
-  mission_content VARCHAR(255) NOT NULL,
-  reward_content  VARCHAR(255) NOT NULL,
-  mission_type    BOOLEAN
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE ITEMS (
+    item_id VARCHAR(255) PRIMARY KEY,
+    item_name VARCHAR(50) NOT NULL,
+    item_point INT NOT NULL,
+    sold_count INT NOT NULL,
+    item_image_folder VARCHAR(255) NOT NULL,
+    item_create_day TIMESTAMP NOT NULL,
+    item_delete_day TIMESTAMP NOT NULL
+);
 
 CREATE TABLE THRESHOLD (
-  id                   INT PRIMARY KEY,
-  steps_point_settings INT NOT NULL,
-  pet_size_logic       INT NOT NULL,
-  pet_health_logic     INT NOT NULL,
-  exercise_settings    INT NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    steps_point_settings INT NOT NULL,
+    pet_size_logic INT NOT NULL,
+    pet_health_logic INT NOT NULL,
+    exercise_settings INT NOT NULL
+);
 
 CREATE TABLE GROUP_INFO (
-  group_id      VARCHAR(255) PRIMARY KEY,
-  admin_id      VARCHAR(255) NOT NULL,
-  group_name    VARCHAR(20)  NOT NULL,
-  max_in_person INT          NOT NULL,
-  back_image    VARCHAR(255) NOT NULL,
-  CONSTRAINT fk_group_admin FOREIGN KEY (admin_id) REFERENCES USERS(user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-/* =========================== */
-/* 2. 子テーブル               */
-/* =========================== */
-CREATE TABLE USERS_ITEMS (
-  user_id     VARCHAR(255) NOT NULL,
-  item_id     VARCHAR(255) NOT NULL,
-  item_count  INT          NOT NULL,
-  skin        VARCHAR(50),
-  usage_state BOOLEAN      DEFAULT 0,
-  PRIMARY KEY (user_id, item_id),
-  FOREIGN KEY (user_id) REFERENCES USERS(user_id),
-  FOREIGN KEY (item_id) REFERENCES ITEM(item_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE USERS_PETS (
-  user_id        VARCHAR(255) NOT NULL,
-  pet_id         VARCHAR(255) NOT NULL,
-  user_main_pet  BOOLEAN      NOT NULL,
-  user_pet_name  VARCHAR(20)  NOT NULL,
-  user_sub_pet   BOOLEAN,
-  pet_size       VARCHAR(10),
-  PRIMARY KEY (user_id, pet_id),
-  FOREIGN KEY (user_id) REFERENCES USERS(user_id),
-  FOREIGN KEY (pet_id)  REFERENCES PETS(pet_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE EXERCISE (
-  user_id            VARCHAR(255) NOT NULL,
-  day                DATE         NOT NULL,
-  exercise_quantity  INT          NOT NULL,
-  PRIMARY KEY (user_id, day),
-  FOREIGN KEY (user_id) REFERENCES USERS(user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE CONTRIBUTIONS (
-  user_id VARCHAR(255) NOT NULL,
-  day     DATE         NOT NULL,
-  count   INT          NOT NULL,
-  PRIMARY KEY (user_id, day),
-  FOREIGN KEY (user_id) REFERENCES USERS(user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE MISSION_CLEARD (
-  user_id    VARCHAR(255) NOT NULL,
-  mission_id VARCHAR(255) NOT NULL,
-  day_time   TIMESTAMP    NOT NULL,
-  PRIMARY KEY (user_id, mission_id, day_time),
-  FOREIGN KEY (user_id)    REFERENCES USERS(user_id),
-  FOREIGN KEY (mission_id) REFERENCES MISSION(mission_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    group_id VARCHAR(255) PRIMARY KEY,
+    admin_id VARCHAR(255) NOT NULL,
+    group_name VARCHAR(20) NOT NULL,
+    max_person INT NOT NULL,
+    back_image VARCHAR(255) NOT NULL,
+    FOREIGN KEY (admin_id) REFERENCES USERS(user_id)
+);
 
 CREATE TABLE GROUP_MEMBER (
-  group_id VARCHAR(255) NOT NULL,
-  user_id  VARCHAR(255) NOT NULL,
-  role     ENUM('ADMIN','MEMBER') DEFAULT 'MEMBER',
-  PRIMARY KEY (group_id, user_id),
-  FOREIGN KEY (group_id) REFERENCES GROUP_INFO(group_id),
-  FOREIGN KEY (user_id)  REFERENCES USERS(user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    group_id VARCHAR(255) NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    PRIMARY KEY (group_id, user_id),
+    FOREIGN KEY (group_id) REFERENCES GROUP_INFO(group_id),
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id)
+);
 
-/* =========================== */
-/* 3. サンプルデータ挿入       */
-/* =========================== */
+CREATE TABLE EXERCISE (
+    user_id VARCHAR(20) NOT NULL,
+    day TIMESTAMP NOT NULL,
+    exercise_quantity INT NOT NULL,
+    PRIMARY KEY (user_id, day),
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id)
+);
 
--- Insert Users data (matching all 12 columns)
-INSERT INTO USERS (user_id, user_name, user_icon, point, google_access_token, google_refresh_token, google_token_expires_at, github_access_token, github_refresh_token, github_token_expires_at, github_user_id, github_username) VALUES
-  ('user001', 'Taro Yamada', '/icons/taro.png', 120, 'google_access_1', 'google_refresh_1', '2025-12-31 23:59:59', 'github_access_token_1', 'github_refresh_1', '2025-12-31 23:59:59', 'git001', 'tarodev'),
-  ('user002', 'Hanako Sato', '/icons/hanako.png', 250, 'google_access_2', 'google_refresh_2', '2025-12-31 23:59:59', 'github_access_token_2', 'github_refresh_2', '2025-12-31 23:59:59', 'git002', 'hanakocode'),
-  ('user003', 'Jiro Tanaka', '/icons/jiro.png', 80, 'google_access_3', 'google_refresh_3', '2025-12-31 23:59:59', 'github_access_token_3', 'github_refresh_3', '2025-12-31 23:59:59', 'git003', 'jiroprog'),
-  ('user004', 'Michiko Ito', '/icons/michiko.png', 180, 'google_access_4', 'google_refresh_4', '2025-12-31 23:59:59', 'github_access_token_4', 'github_refresh_4', '2025-12-31 23:59:59', 'git004', 'michikodev'),
-  ('user005', 'Kenji Suzuki', '/icons/kenji.png', 320, 'google_access_5', 'google_refresh_5', '2025-12-31 23:59:59', 'github_access_token_5', 'github_refresh_5', '2025-12-31 23:59:59', 'git005', 'kenjicoder');
+CREATE TABLE CONTRIBUTIONS (
+    user_id VARCHAR(255) NOT NULL,
+    day TIMESTAMP NOT NULL,
+    count VARCHAR(255) NOT NULL,
+    PRIMARY KEY (user_id, day),
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id)
+);
 
--- Insert Pets data
-INSERT INTO PETS (pet_id, pet_name, pet_image_folder) VALUES
-  ('pet001', 'Dragon', '/pets/dragon'),
-  ('pet002', 'Cat', '/pets/cat'),
-  ('pet003', 'Panda', '/pets/panda'),
-  ('pet004', 'Rabbit', '/pets/rabbit'),
-  ('pet005', 'Wolf', '/pets/wolf');
+CREATE TABLE MISSION (
+    mission_id VARCHAR(255) PRIMARY KEY,
+    mission_name VARCHAR(50) NOT NULL,
+    mission_goal VARCHAR(255) NOT NULL,
+    reward_content VARCHAR(255) NOT NULL,
+    mission_type VARCHAR(255) NOT NULL
+);
 
--- Insert Items data
-INSERT INTO ITEM (item_id, item_name, item_point, sold_count, item_image_folder, item_create_day, item_delete_day) VALUES
-  ('item001', 'Apple', 10, 100, '/items/apple', '2025-06-15 00:00:00', NULL),
-  ('item002', 'Banana', 15, 80, '/items/banana', '2025-06-16 00:00:00', NULL),
-  ('item003', 'Cookie', 25, 60, '/items/cookie', '2025-06-17 00:00:00', NULL),
-  ('item004', 'Energy Drink', 50, 30, '/items/energy_drink', '2025-06-18 00:00:00', NULL),
-  ('item005', 'Protein Bar', 35, 45, '/items/protein_bar', '2025-06-19 00:00:00', NULL);
+CREATE TABLE MISSION_CLEARD (
+    user_id VARCHAR(255) NOT NULL,
+    mission_id VARCHAR(255) NOT NULL,
+    mission_goal INT NOT NULL,
+    current_status INT,
+    clear_status BOOLEAN NOT NULL,
+    clear_time TIMESTAMP,
+    reward_content INT NOT NULL,
+    mission_type VARCHAR(255) NOT NULL,
+    PRIMARY KEY (user_id, mission_id),
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id),
+    FOREIGN KEY (mission_id) REFERENCES MISSION(mission_id)
+);
 
--- Insert Mission data
-INSERT INTO MISSION (mission_id, mission_name, mission_content, reward_content, mission_type) VALUES
-  ('m001', 'Daily 1000 Steps', 'Walk at least 1000 steps per day', '10 Points', 1),
-  ('m002', 'Weekly 3 Workouts', 'Exercise 3 times in a week', '30 Points', 0),
-  ('m003', 'Get New Pet', 'Acquire a new pet', '1 Pet Food', 1),
-  ('m004', 'Daily Commit', 'Make at least 1 GitHub commit per day', '15 Points', 1),
-  ('m005', 'Weekly Code Review', 'Review code 5 times in a week', '50 Points', 0);
+CREATE TABLE USERS_PETS (
+    user_id VARCHAR(255) NOT NULL,
+    pet_id VARCHAR(255) NOT NULL,
+    user_main_pet BOOLEAN NOT NULL,
+    user_pet_name VARCHAR(20) NOT NULL,
+    user_sub_pet BOOLEAN,
+    pet_size VARCHAR(10),
+    PRIMARY KEY (user_id, pet_id),
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id),
+    FOREIGN KEY (pet_id) REFERENCES PETS(pet_id)
+);
 
--- Insert Group Info data
-INSERT INTO GROUP_INFO (group_id, admin_id, group_name, max_in_person, back_image) VALUES
-  ('g001', 'user001', 'Dragon Nest', 10, '/groups/dragon_nest.jpg'),
-  ('g002', 'user002', 'Cat Club', 8, '/groups/cat_club.jpg'),
-  ('g003', 'user003', 'Panda Palace', 12, '/groups/panda_palace.jpg'),
-  ('g004', 'user004', 'Rabbit Run', 15, '/groups/rabbit_run.jpg');
+CREATE TABLE USERS_ITEMS (
+    user_id VARCHAR(255) NOT NULL,
+    item_id VARCHAR(255) NOT NULL,
+    item_count INT NOT NULL,
+    category VARCHAR(255) NOT NULL,
+    usage_state BOOLEAN,
+    PRIMARY KEY (user_id, item_id),
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id),
+    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id)
+);
+-- ============================
+-- 📦 3. INSERT SAMPLE DATA FOR TOKEN REFRESH TESTING
+-- ============================
+-- 
+-- 🔄 TOKEN REFRESH TEST SCENARIOS:
+-- User 1 (7Mpj4mM...): Token expires in 30 min → Should be refreshed by background job
+-- User 2 (9Xyz2nN...): Token expired 1h ago → Needs immediate refresh 
+-- User 3 (1Abc3oO...): Fresh token (55 min left) → No refresh needed
+-- User 4 (4Def6pP...): Token expires in 5 min → Edge case testing
+-- User 5 (5Ghi9qQ...): Token expires tomorrow → No refresh needed
+-- 
+-- 🧪 TESTING COMMANDS:
+-- SELECT user_name, google_token_expires_at, 
+--        TIMESTAMPDIFF(MINUTE, NOW(), google_token_expires_at) as minutes_left
+-- FROM USERS ORDER BY google_token_expires_at;
+-- 
+-- ============================
 
--- Insert Threshold data
-INSERT INTO THRESHOLD (id, steps_point_settings, pet_size_logic, pet_health_logic, exercise_settings) VALUES
-  (1, 100, 50, 75, 25);
+INSERT INTO THRESHOLD VALUES (1, 1, 1, 1);
 
--- Insert Users Items data
-INSERT INTO USERS_ITEMS (user_id, item_id, item_count, skin, usage_state) VALUES
-  ('user001', 'item001', 5, 'red', 1),
-  ('user001', 'item002', 2, 'yellow', 0),
-  ('user001', 'item003', 1, 'brown', 0),
-  ('user002', 'item001', 3, 'green', 1),
-  ('user002', 'item004', 1, 'blue', 1),
-  ('user003', 'item002', 4, 'yellow', 0),
-  ('user003', 'item005', 2, 'orange', 1),
-  ('user004', 'item001', 6, 'red', 0),
-  ('user004', 'item003', 3, 'brown', 1),
-  ('user005', 'item004', 2, 'blue', 1);
+-- USERS - Realistic test data for token refresh scenarios
+INSERT INTO USERS VALUES
+-- User 1: Token expires in 30 minutes (needs refresh soon)
+('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 
+ 'HUYNH NGUYEN DUC', 
+ 'https://lh3.googleusercontent.com/a/ACg8ocLRFoVKVi1JycSuTmOIrmdIJAto0B3GYK-b_DLITrmJr-YwRF4=s96-c', 
+ 1500,
+ 'ya29.a0AWY7CknVGc8FakeTokenExample1234567890abcdef',
+ 'refresh_token_1_realistic_example_abcd1234567890',
+ DATE_ADD(NOW(), INTERVAL 30 MINUTE),
+ 'gho_GitHubPersonalAccessToken123456789abcdef',
+ '',
+ NULL,
+ '115116373',
+ 'huynhnguyen1906'),
 
--- Insert Users Pets data
-INSERT INTO USERS_PETS (user_id, pet_id, user_main_pet, user_pet_name, user_sub_pet, pet_size) VALUES
-  ('user001', 'pet001', 1, 'Draco', 0, 'L'),
-  ('user001', 'pet002', 0, 'Whiskers', 1, 'S'),
-  ('user002', 'pet002', 1, 'Mike', 0, 'M'),
-  ('user002', 'pet003', 0, 'Bamboo', 1, 'M'),
-  ('user003', 'pet003', 1, 'Pan-chan', 0, 'S'),
-  ('user004', 'pet004', 1, 'Fluffy', 0, 'S'),
-  ('user004', 'pet001', 0, 'Drake', 1, 'L'),
-  ('user005', 'pet005', 1, 'Alpha', 0, 'L');
+-- User 2: Token expired 1 hour ago (needs immediate refresh)
+('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 
+ 'TANAKA TARO', 
+ 'https://lh3.googleusercontent.com/a/default-user-2', 
+ 2300,
+ 'ya29.a0AWY7CknVExpiredTokenExample9876543210fedcba',
+ 'refresh_token_2_realistic_example_efgh9876543210',
+ DATE_SUB(NOW(), INTERVAL 1 HOUR),
+ 'gho_GitHubPersonalAccessToken987654321fedcba',
+ '',
+ NULL,
+ '987654321',
+ 'tanaka-taro'),
 
--- Insert Exercise data
-INSERT INTO EXERCISE (user_id, day, exercise_quantity) VALUES
-  ('user001', '2025-06-20', 1200),
-  ('user001', '2025-06-21', 1500),
-  ('user001', '2025-06-22', 800),
-  ('user002', '2025-06-20', 2000),
-  ('user002', '2025-06-21', 1800),
-  ('user002', '2025-06-22', 2200),
-  ('user003', '2025-06-20', 900),
-  ('user003', '2025-06-21', 1100),
-  ('user003', '2025-06-22', 1300),
-  ('user004', '2025-06-20', 1600),
-  ('user004', '2025-06-21', 1400),
-  ('user005', '2025-06-20', 2500),
-  ('user005', '2025-06-21', 2800);
+-- User 3: Fresh token (expires in 55 minutes, no refresh needed)
+('1Abc3oOKqRezSU9n3LIfaYqxTw34', 
+ 'SMITH JOHN', 
+ 'https://lh3.googleusercontent.com/a/default-user-3', 
+ 890,
+ 'ya29.a0AWY7CknVFreshTokenExample1111222233334444',
+ 'refresh_token_3_realistic_example_ijkl1111222233',
+ DATE_ADD(NOW(), INTERVAL 55 MINUTE),
+ 'gho_GitHubPersonalAccessToken111122223333',
+ '',
+ NULL,
+ '111222333',
+ 'smith-john'),
 
--- Insert Contributions data
-INSERT INTO CONTRIBUTIONS (user_id, day, count) VALUES
-  ('user001', '2025-06-20', 5),
-  ('user001', '2025-06-21', 8),
-  ('user001', '2025-06-22', 3),
-  ('user002', '2025-06-20', 12),
-  ('user002', '2025-06-21', 15),
-  ('user002', '2025-06-22', 10),
-  ('user003', '2025-06-20', 2),
-  ('user003', '2025-06-21', 4),
-  ('user003', '2025-06-22', 6),
-  ('user004', '2025-06-20', 18),
-  ('user004', '2025-06-21', 20),
-  ('user004', '2025-06-22', 14),
-  ('user005', '2025-06-20', 25),
-  ('user005', '2025-06-21', 30),
-  ('user005', '2025-06-22', 28);
+-- User 4: Token expires in 5 minutes (edge case testing)
+('4Def6pPLrSfaTW0o4MJgbZryUx45', 
+ 'YAMADA HANAKO', 
+ 'https://lh3.googleusercontent.com/a/default-user-4', 
+ 750,
+ 'ya29.a0AWY7CknVEdgeCaseTokenExample555566667777',
+ 'refresh_token_4_realistic_example_mnop5555666677',
+ DATE_ADD(NOW(), INTERVAL 5 MINUTE),
+ 'gho_GitHubPersonalAccessToken555566667777',
+ '',
+ NULL,
+ '555666777',
+ 'yamada-hanako'),
 
--- Insert Mission Cleared data
-INSERT INTO MISSION_CLEARD (user_id, mission_id, day_time) VALUES
-  ('user001', 'm001', '2025-06-20 09:30:00'),
-  ('user001', 'm004', '2025-06-20 14:15:00'),
-  ('user002', 'm001', '2025-06-20 08:45:00'),
-  ('user002', 'm002', '2025-06-21 19:20:00'),
-  ('user002', 'm004', '2025-06-20 16:30:00'),
-  ('user003', 'm003', '2025-06-20 11:00:00'),
-  ('user004', 'm001', '2025-06-20 07:20:00'),
-  ('user004', 'm004', '2025-06-20 10:45:00'),
-  ('user004', 'm005', '2025-06-22 18:30:00'),
-  ('user005', 'm001', '2025-06-20 06:15:00'),
-  ('user005', 'm002', '2025-06-21 20:00:00'),
-  ('user005', 'm004', '2025-06-20 12:30:00'),
-  ('user005', 'm005', '2025-06-22 17:45:00');
+-- User 5: Token expires tomorrow (no refresh needed)
+('5Ghi9qQMsSgbUX1p5NKhcAsyVy56', 
+ 'WILSON ALICE', 
+ 'https://lh3.googleusercontent.com/a/default-user-5', 
+ 3200,
+ 'ya29.a0AWY7CknVLongValidTokenExample8888999900001111',
+ 'refresh_token_5_realistic_example_qrst8888999900',
+ DATE_ADD(NOW(), INTERVAL 1 DAY),
+ 'gho_GitHubPersonalAccessToken888899990000',
+ '',
+ NULL,
+ '888999000',
+ 'wilson-alice');
 
--- Insert Group Member data
-INSERT INTO GROUP_MEMBER (group_id, user_id, role) VALUES
-  ('g001', 'user001', 'ADMIN'),
-  ('g001', 'user002', 'MEMBER'),
-  ('g001', 'user005', 'MEMBER'),
-  ('g002', 'user002', 'ADMIN'),
-  ('g002', 'user003', 'MEMBER'),
-  ('g002', 'user004', 'MEMBER'),
-  ('g003', 'user003', 'ADMIN'),
-  ('g003', 'user001', 'MEMBER'),
-  ('g004', 'user004', 'ADMIN'),
-  ('g004', 'user005', 'MEMBER');
+-- PETS
+INSERT INTO PETS VALUES
+('p1', 'Dog', 'folder1'),
+('p2', 'Cat', 'folder2'),
+('p3', 'Rabbit', 'folder3');
+
+-- ITEMS
+INSERT INTO ITEMS VALUES
+('i1', 'Ball', 10, 100, 'folder1', '2025-06-23 07:02:06', '2025-06-23 07:02:06'),
+('i2', 'Bone', 15, 50, 'folder2', '2025-06-23 07:02:06', '2025-06-23 07:02:06'),
+('i3', 'Bell', 20, 80, 'folder3', '2025-06-23 07:02:06', '2025-06-23 07:02:06');
+
+-- GROUP_INFO
+INSERT INTO GROUP_INFO VALUES
+('g1', '7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'Fitness Buddies', 10, 'bg1.jpg'),
+('g2', '9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 'Morning Runners', 8, 'bg2.jpg'),
+('g3', '1Abc3oOKqRezSU9n3LIfaYqxTw34', 'Yoga Masters', 5, 'bg3.jpg');
+
+-- GROUP_MEMBER
+INSERT INTO GROUP_MEMBER VALUES
+('g1', '7Mpj4mMImNbyOU7k1IGbwWmvSv12'),
+('g1', '9Xyz2nNJpQcyRT8m2KHdxZpwUv23'),
+('g2', '9Xyz2nNJpQcyRT8m2KHdxZpwUv23'),
+('g2', '1Abc3oOKqRezSU9n3LIfaYqxTw34'),
+('g3', '1Abc3oOKqRezSU9n3LIfaYqxTw34'),
+('g3', '4Def6pPLrSfaTW0o4MJgbZryUx45');
+
+-- EXERCISE - Sample fitness data for testing
+INSERT INTO EXERCISE VALUES
+('7Mpj4mMImNbyOU7k1IGbwWmvSv12', '2025-07-03 00:00:00', 8500),
+('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', '2025-07-03 00:00:00', 12000),
+('1Abc3oOKqRezSU9n3LIfaYqxTw34', '2025-07-03 00:00:00', 6500),
+('4Def6pPLrSfaTW0o4MJgbZryUx45', '2025-07-03 00:00:00', 9200),
+('7Mpj4mMImNbyOU7k1IGbwWmvSv12', '2025-07-02 00:00:00', 7800),
+('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', '2025-07-02 00:00:00', 11500);
+
+-- CONTRIBUTIONS - GitHub contribution data
+INSERT INTO CONTRIBUTIONS VALUES
+('7Mpj4mMImNbyOU7k1IGbwWmvSv12', '2025-07-03 00:00:00', '5'),
+('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', '2025-07-03 00:00:00', '3'),
+('1Abc3oOKqRezSU9n3LIfaYqxTw34', '2025-07-03 00:00:00', '8'),
+('4Def6pPLrSfaTW0o4MJgbZryUx45', '2025-07-03 00:00:00', '2'),
+('7Mpj4mMImNbyOU7k1IGbwWmvSv12', '2025-07-02 00:00:00', '4'),
+('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', '2025-07-02 00:00:00', '6');
+
+-- MISSION - Fitness and coding challenges
+INSERT INTO MISSION VALUES
+('m1', 'Daily Walk', 'Walk 8000 steps', '15pt', 'daily'),
+('m2', 'Weekly Goal', 'Walk 50000 steps', '100pt', 'weekly'),
+('m3', 'Coding Streak', 'Code for 7 days', '50pt', 'weekly'),
+('m4', 'Morning Exercise', 'Exercise for 30 min', '20pt', 'daily'),
+('m5', 'GitHub Contribution', 'Make 5 commits', '25pt', 'daily');
+
+-- MISSION_CLEARD - Mission progress for users
+INSERT INTO MISSION_CLEARD VALUES
+('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'm1', 8000, 8500, TRUE, '2025-07-03 12:00:00', 15, 'daily'),
+('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 'm2', 50000, 35000, FALSE, NULL, 100, 'weekly'),
+('1Abc3oOKqRezSU9n3LIfaYqxTw34', 'm3', 7, 5, FALSE, NULL, 50, 'weekly'),
+('4Def6pPLrSfaTW0o4MJgbZryUx45', 'm4', 30, 30, TRUE, '2025-07-03 08:30:00', 20, 'daily'),
+('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'm5', 5, 5, TRUE, '2025-07-03 18:00:00', 25, 'daily');
+
+-- USERS_PETS - Pet assignments
+INSERT INTO USERS_PETS VALUES
+('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'p1', TRUE, 'Lucky', FALSE, 'M'),
+('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 'p2', TRUE, 'Whiskers', TRUE, 'S'),
+('1Abc3oOKqRezSU9n3LIfaYqxTw34', 'p3', FALSE, 'Fluffy', TRUE, 'L'),
+('4Def6pPLrSfaTW0o4MJgbZryUx45', 'p1', TRUE, 'Buddy', FALSE, 'M'),
+('5Ghi9qQMsSgbUX1p5NKhcAsyVy56', 'p2', TRUE, 'Shadow', TRUE, 'S');
+
+-- USERS_ITEMS - User inventory
+INSERT INTO USERS_ITEMS VALUES
+('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'i1', 3, 'toy', TRUE),
+('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 'i2', 2, 'food', FALSE),
+('1Abc3oOKqRezSU9n3LIfaYqxTw34', 'i3', 1, 'toy', TRUE),
+('4Def6pPLrSfaTW0o4MJgbZryUx45', 'i1', 1, 'toy', FALSE),
+('5Ghi9qQMsSgbUX1p5NKhcAsyVy56', 'i2', 4, 'food', TRUE);
+
