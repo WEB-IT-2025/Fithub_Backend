@@ -11,13 +11,13 @@ export const getAllMissions = asyncHandler(async (req: Request, res: Response) =
 })
 
 export const registerMission = asyncHandler(async (req: Request, res: Response) => {
-    const { mission_id, mission_name, mission_content, reward_content, mission_type } = req.body
+    const { mission_id, mission_name, mission_goal, reward_content, mission_type } = req.body
 
-    if (!mission_id || !mission_name || !mission_content || reward_content == null || !mission_type) {
+    if (!mission_id || !mission_name || !mission_goal || reward_content == null || !mission_type) {
         return res.status(400).json({ error: 'すべてのミッション情報を入力してください' })
     }
 
-    const mission: MissionInsertDTO = { mission_id, mission_name, mission_content, reward_content, mission_type }
+    const mission: MissionInsertDTO = { mission_id, mission_name, mission_goal, reward_content, mission_type }
 
     await missionModel.insertMission(mission)
     res.status(201).json({ message: 'ミッション情報を登録しました。' })
@@ -39,28 +39,29 @@ export const deleteMission = asyncHandler(async (req: Request, res: Response) =>
 })
 
 export const getUserMissionStatus = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id } = req.params
+    const { user_id } = req.query
 
     if (!user_id) {
         return res.status(400).json({ error: 'user_idが必要です' })
     }
 
-    const status = await missionModel.getUserMissionStatus(user_id)
+    const status = await missionModel.getUserMissionStatus(String(user_id))
     res.status(200).json(status)
 })
 
 export const clearUserMission = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, mission_id } = req.params
+    const { user_id, mission_id } = req.body
 
     if (!user_id || !mission_id) {
-        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
+        return res.status(400).json({ error: 'user_idとmission_idは必須です' })
     }
 
-    const cleared = await missionModel.markMissionCleared(user_id, mission_id)
+    const cleared = await missionModel.markMissionCleared(String(user_id), String(mission_id))
+
     if (cleared) {
         res.status(200).json({ message: 'ミッションをクリアしました。' })
     } else {
-        res.status(404).json({ error: 'ミッションが見つかりません。' })
+        res.status(404).json({ error: 'ミッションが見つかりません' })
     }
 })
 

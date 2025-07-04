@@ -10,7 +10,11 @@ import {
 import { requireAdmin } from '~/middlewares/requireAdmin'
 import { requireCompleteUser } from '~/middlewares/requireCompleteUser'
 import { handleValidationErrors } from '~/middlewares/validation'
-import { validateMissionIdParam, validateMissionRegistration } from '~/middlewares/validation/missionValidation'
+import {
+    validateClearMissionBody,
+    validateMissionIdParam,
+    validateMissionRegistration,
+} from '~/middlewares/validation/missionValidation'
 
 const router = express.Router()
 
@@ -27,7 +31,7 @@ router.delete('/admin/mission_delete', requireAdmin, validateMissionIdParam, han
 router.get('/status', requireCompleteUser, handleValidationErrors, getUserMissionStatus)
 
 // ミッションクリア
-router.post('/clear', requireCompleteUser, handleValidationErrors, clearUserMission)
+router.post('/clear', requireCompleteUser, validateClearMissionBody, handleValidationErrors, clearUserMission)
 
 // ミッションクリア取り消し（管理者）
 router.post('/admin/revert', requireAdmin, handleValidationErrors, revertUserMission)

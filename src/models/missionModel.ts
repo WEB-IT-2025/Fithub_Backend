@@ -4,7 +4,7 @@ import db from '~/config/database'
 interface MissionRow extends RowDataPacket {
     mission_id: string
     mission_name: string
-    mission_content: string
+    mission_goal: string
     reward_content: number
     mission_type: string
 }
@@ -20,7 +20,7 @@ interface MissionCleardRow extends RowDataPacket {
 export interface MissionInsertDTO {
     mission_id: string
     mission_name: string
-    mission_content: string
+    mission_goal: string
     reward_content: number
     mission_type: string
 }
@@ -32,10 +32,10 @@ export const missionModel = {
     },
 
     async insertMission(mission: MissionInsertDTO): Promise<void> {
-        const { mission_id, mission_name, mission_content, reward_content, mission_type } = mission
+        const { mission_id, mission_name, mission_goal, reward_content, mission_type } = mission
         await db.query(
-            'INSERT INTO MISSION (mission_id, mission_name, mission_content, reward_content, mission_type) VALUES (?, ?, ?, ?, ?)',
-            [mission_id, mission_name, mission_content, reward_content, mission_type]
+            'INSERT INTO MISSION (mission_id, mission_name, mission_goal, reward_content, mission_type) VALUES (?, ?, ?, ?, ?)',
+            [mission_id, mission_name, mission_goal, reward_content, mission_type]
         )
     },
 
