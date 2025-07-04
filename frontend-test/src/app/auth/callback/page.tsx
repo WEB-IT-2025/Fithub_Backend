@@ -2,188 +2,189 @@
 
 import { useEffect, useState } from 'react'
 
-import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 
-export default function OAuthCallbackPage() {
-    const router = useRouter()
-    const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
-    const [message, setMessage] = useState('')
+export default function AuthCallbackPage() {
+    const searchParams = useSearchParams()
+    const [result, setResult] = useState<{
+        success: boolean
+        message: string
+        session_token?: string
+        user_data?: string
+        oauth_data?: string
+        // Google OAuth intermediate result fields
+        is_new_user?: boolean
+        next_step?: string
+        temp_session_token?: string
+        github_oauth_url?: string
+        google_data?: {
+            google_id: string
+            name: string
+            email: string
+            picture: string
+        }
+    } | null>(null)
 
     useEffect(() => {
-        const handleCallback = async () => {
-            try {
-                // Get URL parameters
-                const urlParams = new URLSearchParams(window.location.search)
-                const success = urlParams.get('success')
-                const error = urlParams.get('error')
-                const message = urlParams.get('message')
+        // Get URL parameters
+        const success = searchParams.get('success') === 'true'
+        const googleSuccess = searchParams.get('google_success') === 'true'
+        const message = searchParams.get('message') ? decodeURIComponent(searchParams.get('message')!) : ''
+        const sessionToken = searchParams.get('session_token')
+        const userData = searchParams.get('user_data')
+        const oauthData = searchParams.get('oauth_data')
 
-                if (error) {
-                    setStatus('error')
-                    setMessage(decodeURIComponent(error))
+        // Google OAuth intermediate result (new user)
+        const tempSessionToken = searchParams.get('temp_session_token')
+        const githubOAuthUrl = searchParams.get('github_oauth_url')
+        const googleData = searchParams.get('google_data')
 
-                    // Send error to parent window if in popup
-                    if (typeof window !== 'undefined' && window.opener) {
-                        window.opener.postMessage(
-                            {
-                                type: 'AUTH_ERROR',
-                                error: decodeURIComponent(error),
-                            },
-                            '*'
-                        )
-                        window.close()
-                        return
-                    }
-                    return
-                }
+        // 🔍 DEBUG: Log all parameters
+        console.log('🔔 [CALLBACK] Processing callback with parameters:', {
+            success,
+            googleSuccess,
+            message,
+            sessionToken: sessionToken ? sessionToken.substring(0, 15) + '...' : null,
+            userData: userData ? 'present' : null,
+            oauthData: oauthData ? 'present' : null,
+            tempSessionToken: tempSessionToken ? tempSessionToken.substring(0, 15) + '...' : null,
+            githubOAuthUrl: githubOAuthUrl ? githubOAuthUrl.substring(0, 50) + '...' : null,
+            googleData: googleData ? 'present' : null,
+        })
 
-                if (success === 'true') {
-                    setStatus('success')
-                    setMessage(message ? decodeURIComponent(message) : 'Authentication successful!')
+        let result
 
-                    // Extract additional data from URL
-                    const sessionToken = urlParams.get('session_token')
-                    const tempSessionToken = urlParams.get('temp_session_token')
-                    const githubOauthUrl = urlParams.get('github_oauth_url')
-                    const nextStep = urlParams.get('next_step')
-                    const userData = urlParams.get('user_data')
-                    const oauthData = urlParams.get('oauth_data')
-
-                    // Parse complex data
-                    let parsedUserData = null
-                    let parsedOauthData = null
-
-                    try {
-                        if (userData) {
-                            parsedUserData = JSON.parse(decodeURIComponent(userData))
-                        }
-                        if (oauthData) {
-                            parsedOauthData = JSON.parse(decodeURIComponent(oauthData))
-                        }
-                    } catch (parseError) {
-                        console.error('Failed to parse URL data:', parseError)
-                    }
-
-                    // Close popup if this is running in a popup
-                    if (typeof window !== 'undefined' && window.opener) {
-                        const authResult = {
-                            success: true,
-                            message: message ? decodeURIComponent(message) : 'Authentication successful!',
-                            ...(sessionToken && { session_token: sessionToken }),
-                            ...(tempSessionToken && { temp_session_token: tempSessionToken }),
-                            ...(githubOauthUrl && { github_oauth_url: decodeURIComponent(githubOauthUrl) }),
-                            ...(nextStep && { next_step: nextStep }),
-                            ...(parsedUserData && { user: parsedUserData }),
-                            ...(parsedOauthData && { oauth_data: parsedOauthData }),
-                        }
-
-                        window.opener.postMessage(
-                            {
-                                type: 'AUTH_SUCCESS',
-                                data: authResult,
-                            },
-                            '*'
-                        )
-
-                        // Small delay to ensure postMessage is sent before closing
-                        setTimeout(() => {
-                            window.close()
-                        }, 100)
-                        return
-                    }
-
-                    // Redirect to home page after 2 seconds
-                    setTimeout(() => {
-                        router.push('/')
-                    }, 2000)
-                } else {
-                    setStatus('error')
-                    setMessage('Authentication failed')
-
-                    // Send error to parent window if in popup
-                    if (typeof window !== 'undefined' && window.opener) {
-                        window.opener.postMessage(
-                            {
-                                type: 'AUTH_ERROR',
-                                error: 'Authentication failed',
-                            },
-                            '*'
-                        )
-                        window.close()
-                        return
-                    }
-                }
-            } catch (err) {
-                setStatus('error')
-                setMessage('An unexpected error occurred')
-                console.error('OAuth callback error:', err)
+        if (googleSuccess && tempSessionToken && githubOAuthUrl) {
+            // This is Google OAuth success for new user - need to continue with GitHub
+            console.log('🎯 [CALLBACK] Detected Google OAuth success for new user')
+            result = {
+                success: true,
+                message,
+                is_new_user: true,
+                next_step: 'redirect_to_github_oauth',
+                temp_session_token: tempSessionToken,
+                github_oauth_url: decodeURIComponent(githubOAuthUrl),
+                google_data: googleData ? JSON.parse(decodeURIComponent(googleData)) : undefined,
+            }
+        } else if (success && sessionToken && userData && oauthData) {
+            // This is final result (existing user login or new user account creation)
+            result = {
+                success,
+                message,
+                session_token: sessionToken,
+                user_data: userData,
+                oauth_data: oauthData,
+            }
+        } else if (success) {
+            // Success but missing some data - might be an error case
+            result = {
+                success,
+                message,
+                session_token: sessionToken || undefined,
+                user_data: userData || undefined,
+                oauth_data: oauthData || undefined,
+            }
+        } else {
+            // Error case
+            result = {
+                success: false,
+                message: message || 'Authentication failed',
             }
         }
 
-        handleCallback()
-    }, [router])
+        setResult(result)
 
-    const getStatusColor = () => {
-        switch (status) {
-            case 'loading':
-                return 'border-blue-200 bg-blue-50 text-blue-800'
-            case 'success':
-                return 'border-green-200 bg-green-50 text-green-800'
-            case 'error':
-                return 'border-red-200 bg-red-50 text-red-800'
-        }
-    }
+        // Post message to parent window (popup opener)
+        if (window.opener) {
+            console.log('🔔 [CALLBACK] Posting message to parent window:', {
+                hasOpener: !!window.opener,
+                googleSuccess,
+                success,
+                messageType:
+                    googleSuccess ? 'GOOGLE_OAUTH_SUCCESS'
+                    : success ? 'AUTH_SUCCESS'
+                    : 'AUTH_ERROR',
+            })
 
-    const getStatusIcon = () => {
-        switch (status) {
-            case 'loading':
-                return (
-                    <div className='w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin' />
+            if (googleSuccess) {
+                // Google OAuth intermediate result
+                console.log('📤 [CALLBACK] Sending GOOGLE_OAUTH_SUCCESS message:', result)
+                window.opener.postMessage(
+                    {
+                        type: 'GOOGLE_OAUTH_SUCCESS',
+                        data: result,
+                    },
+                    '*'
                 )
-            case 'success':
-                return (
-                    <div className='w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-lg'>
-                        ✓
-                    </div>
+            } else {
+                // Final auth result
+                console.log('📤 [CALLBACK] Sending AUTH result message:', result)
+                window.opener.postMessage(
+                    {
+                        type: success ? 'AUTH_SUCCESS' : 'AUTH_ERROR',
+                        data: result,
+                        error: success ? null : message,
+                    },
+                    '*'
                 )
-            case 'error':
-                return (
-                    <div className='w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white text-lg'>
-                        ✗
-                    </div>
-                )
+            }
+
+            // Auto-close popup after posting message
+            setTimeout(() => {
+                console.log('🔒 [CALLBACK] Auto-closing popup window')
+                window.close()
+            }, 1000)
+        } else {
+            console.error('❌ [CALLBACK] No window.opener found - cannot send message to parent')
         }
+    }, [searchParams])
+
+    if (!result) {
+        return (
+            <div className='min-h-screen flex items-center justify-center bg-gray-50'>
+                <div className='text-center'>
+                    <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto'></div>
+                    <p className='mt-4 text-lg text-gray-600'>Processing authentication...</p>
+                </div>
+            </div>
+        )
     }
 
     return (
-        <div className='min-h-screen flex items-center justify-center bg-gray-50 p-4'>
-            <div className={`max-w-md w-full p-8 border rounded-lg text-center ${getStatusColor()}`}>
-                <div className='flex justify-center mb-4'>{getStatusIcon()}</div>
+        <div className='min-h-screen flex items-center justify-center bg-gray-50'>
+            <div className='max-w-md w-full bg-white rounded-lg shadow-md p-6'>
+                <div className='text-center'>
+                    {result.success ?
+                        <>
+                            <div className='text-6xl mb-4'>🎉</div>
+                            <h1 className='text-2xl font-bold text-green-600 mb-2'>Authentication Successful!</h1>
+                            <p className='text-gray-600 mb-4'>{result.message}</p>
+                            <div className='text-sm text-gray-500'>
+                                <p>This window will close automatically...</p>
+                                <p>If not, you can close it manually.</p>
+                            </div>
+                        </>
+                    :   <>
+                            <div className='text-6xl mb-4'>❌</div>
+                            <h1 className='text-2xl font-bold text-red-600 mb-2'>Authentication Failed</h1>
+                            <p className='text-gray-600 mb-4'>{result.message}</p>
+                            <button
+                                onClick={() => window.close()}
+                                className='px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700'
+                            >
+                                Close Window
+                            </button>
+                        </>
+                    }
+                </div>
 
-                <h1 className='text-xl font-semibold mb-2'>
-                    {status === 'loading' && 'Processing Authentication...'}
-                    {status === 'success' && 'Authentication Successful!'}
-                    {status === 'error' && 'Authentication Failed'}
-                </h1>
-
-                <p className='text-sm mb-4'>{message}</p>
-
-                {status === 'success' && typeof window !== 'undefined' && !window.opener && (
-                    <p className='text-xs opacity-75'>Redirecting to home page in 2 seconds...</p>
-                )}
-
-                {status === 'error' && typeof window !== 'undefined' && !window.opener && (
-                    <button
-                        onClick={() => router.push('/')}
-                        className='px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700'
-                    >
-                        Go Back Home
-                    </button>
-                )}
-
-                {typeof window !== 'undefined' && window.opener && (
-                    <p className='text-xs opacity-75'>You can close this window now.</p>
-                )}
+                {/* Debug Information */}
+                <details className='mt-6'>
+                    <summary className='cursor-pointer text-sm text-gray-500'>Debug Information</summary>
+                    <pre className='mt-2 p-2 bg-gray-100 rounded text-xs overflow-x-auto'>
+                        {JSON.stringify(result, null, 2)}
+                    </pre>
+                </details>
             </div>
         </div>
     )

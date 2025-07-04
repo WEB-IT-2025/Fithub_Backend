@@ -43,6 +43,7 @@ export interface CompleteUser {
     user_id: string
     user_name: string
     user_icon: string
+    email?: string
     point: number
     google_access_token: string | null
     google_refresh_token: string | null
@@ -58,6 +59,7 @@ interface UserRow extends RowDataPacket {
     user_id: string
     user_name: string
     user_icon: string
+    email?: string
     point: number
     google_access_token: string | null
     google_refresh_token: string | null
@@ -80,6 +82,17 @@ export const userModel = {
         return rows.length > 0
     },
 
+    // Find user by email
+    async findByEmail(email: string): Promise<CompleteUser | null> {
+        const [rows] = await db.query<UserRow[]>('SELECT * FROM USERS WHERE email = ?', [email])
+
+        if (rows.length === 0) {
+            return null
+        }
+
+        return rows[0]
+    },
+
     // Create complete user with all OAuth data
     async createCompleteUser(userData: CompleteUserCreationData): Promise<void> {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -88,16 +101,28 @@ export const userModel = {
         // Calculate Google token expiry
         const googleExpiresAt = new Date(Date.now() + google_oauth.expires_in * 1000)
 
+        // 🔍 DEBUG: Log data before saving to database
+        console.log('💾 [DB] Creating user with data:', {
+            firebase_uid,
+            user_name,
+            hasGoogleAccessToken: !!google_oauth.access_token,
+            hasGoogleRefreshToken: !!google_oauth.refresh_token,
+            googleRefreshTokenLength: google_oauth.refresh_token ? google_oauth.refresh_token.length : 0,
+            googleRefreshTokenValue: google_oauth.refresh_token || 'EMPTY',
+            googleExpiresAt: googleExpiresAt.toISOString(),
+        })
+
         await db.query(
             `INSERT INTO USERS 
-            (user_id, user_name, user_icon, point, 
+            (user_id, user_name, user_icon, email, point, 
              google_access_token, google_refresh_token, google_token_expires_at,
              github_access_token, github_refresh_token, github_user_id, github_username) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 firebase_uid, // user_id = firebase_uid
                 user_name,
                 user_icon,
+                email, // Add email to the insert
                 0, // initial points
                 google_oauth.access_token,
                 google_oauth.refresh_token || '',
@@ -108,6 +133,20 @@ export const userModel = {
                 github_oauth.github_username,
             ]
         )
+
+        // 🔍 DEBUG: Verify data was saved correctly
+        const [rows] = await db.query<UserRow[]>(
+            'SELECT user_name, google_refresh_token FROM USERS WHERE user_id = ?',
+            [firebase_uid]
+        )
+        if (rows.length > 0) {
+            console.log('✅ [DB] User created successfully:', {
+                firebase_uid,
+                user_name: rows[0].user_name,
+                hasRefreshTokenInDB: !!rows[0].google_refresh_token,
+                refreshTokenInDB: rows[0].google_refresh_token || 'EMPTY',
+            })
+        }
     },
 
     // Get user by Firebase UID (for login)
@@ -173,5 +212,72 @@ export const userModel = {
             email: userData.email,
             is_existing_user: existingUser !== null,
         }
+    },
+
+    // NEW: Create user from Google OAuth directly (no Firebase)
+    async createUserFromGoogleOAuth(userData: {
+        email: string
+        name: string
+        picture: string
+        google_oauth: GoogleOAuthData
+        github_oauth: GitHubOAuthData
+    }): Promise<string> {
+        // Generate a unique user ID
+        const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
+
+        // Calculate Google token expiry
+        const googleExpiresAt = new Date(Date.now() + userData.google_oauth.expires_in * 1000)
+
+        // 🔍 DEBUG: Log data before saving to database
+        console.log('💾 [DB] Creating user from Google OAuth with data:', {
+            userId,
+            email: userData.email,
+            name: userData.name,
+            hasGoogleAccessToken: !!userData.google_oauth.access_token,
+            hasGoogleRefreshToken: !!userData.google_oauth.refresh_token,
+            googleRefreshTokenLength:
+                userData.google_oauth.refresh_token ? userData.google_oauth.refresh_token.length : 0,
+            googleRefreshTokenValue: userData.google_oauth.refresh_token || 'EMPTY',
+            googleExpiresAt: googleExpiresAt.toISOString(),
+        })
+
+        await db.query(
+            `INSERT INTO USERS 
+            (user_id, user_name, user_icon, email, point, 
+             google_access_token, google_refresh_token, google_token_expires_at,
+             github_access_token, github_refresh_token, github_user_id, github_username) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                userId,
+                userData.name,
+                userData.picture,
+                userData.email,
+                0, // initial points
+                userData.google_oauth.access_token,
+                userData.google_oauth.refresh_token || '',
+                googleExpiresAt,
+                userData.github_oauth.access_token,
+                '', // GitHub OAuth usually doesn't provide refresh_token
+                userData.github_oauth.github_user_id.toString(),
+                userData.github_oauth.github_username,
+            ]
+        )
+
+        // 🔍 DEBUG: Verify data was saved correctly
+        const [rows] = await db.query<UserRow[]>(
+            'SELECT user_name, email, google_refresh_token FROM USERS WHERE user_id = ?',
+            [userId]
+        )
+        if (rows.length > 0) {
+            console.log('✅ [DB] User created successfully from Google OAuth:', {
+                userId,
+                user_name: rows[0].user_name,
+                email: rows[0].email,
+                hasRefreshTokenInDB: !!rows[0].google_refresh_token,
+                refreshTokenInDB: rows[0].google_refresh_token || 'EMPTY',
+            })
+        }
+
+        return userId
     },
 }

@@ -1,99 +1,43 @@
 # Fithub Authentication API Documentation
 
-## 🔥 **完全なOAuth認証フロー概要**
+## 🔥 **最新OAuth認証フロー概要 (NEW FLOW)**
 ```
-1. Firebase認証 → Firebase ID token取得
-2. POST /api/auth/verify-firebase → Google OAuth URL (新規) or session token (既存)
-3. Google OAuth popup → GitHub OAuth URL
-4. GitHub OAuth popup → アカウント作成完了 + final session token
+1. GET /api/auth/google → Google OAuth URL取得
+2. Google OAuth popup → GitHub OAuth URL取得
+3. GitHub OAuth popup → アカウント作成完了 + final session token
 ```
 
 ### 🎯 **実装の特徴**
+- **Direct OAuth Flow**: Firebase不要、GoogleとGitHubのみ
 - **Adaptive Response**: Web (redirect) / Mobile (JSON) 自動判定
 - **Popup OAuth Flow**: フロントエンドでpopup window使用
 - **Comprehensive Logging**: 各ステップの詳細ログ
 - **Error Handling**: 明確なエラーコードとメッセージ
-- **Token Management**: Firebase, Google, GitHub, Session tokens管理
+- **Token Management**: Google, GitHub, Session tokens管理
 
 ---
 
-## 1. Firebase認証検証
+## 1. Google OAuth 開始
 
-**POST** `/api/auth/verify-firebase`
+**GET** `/api/auth/google`
 
 ### Request
-```json
-{
-  "firebase_id_token": "eyJhbGciOiJSUzI1NiIs...",
-  "google_access_token": "ya29.a0AWY7CknV..." // Optional: Google OAuthをスキップ
-}
-```
-
-> **💡 重要**: `google_access_token`が提供された場合、Google OAuth stepをスキップしてGitHub OAuthに直接進みます。
+リクエストボディなし
 
 ### Response
 
-**✅ 既存ユーザー (ログイン完了):**
+**✅ Google OAuth URL生成成功:**
 ```json
 {
   "success": true,
-  "is_new_user": false,
-  "message": "ログインが完了しました！",
-  "session_token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {
-    "user_id": "7Mpj4mMlmNbyOU7k1GbwWmvSv12",
-    "user_name": "田中太郎",
-    "user_icon": "https://lh3.googleusercontent.com/...",
-    "email": "tanaka@example.com"
-  },
-  "oauth_data": {
-    "google": { "connected": true },
-    "github": { "connected": true }
-  }
+  "message": "Google OAuth URL generated successfully",
+  "google_oauth_url": "https://accounts.google.com/o/oauth2/v2/auth?client_id=...",
+  "state": "a1b2c3d4e5f6g7h8...",
+  "next_step": "redirect_to_google_oauth"
 }
 ```
 
-**新規ユーザー (OAuth継続):**
-```json
-{
-  "success": true,
-```
-
-**🆕 新規ユーザー (Google OAuth必要):**
-```json
-{
-  "success": true,
-  "message": "Firebase認証成功。Google認証を開始してください。",
-  "is_new_user": true,
-  "temp_session_token": "eyJhbGciOiJIUzI1NiIs...",
-  "google_oauth_url": "https://accounts.google.com/o/oauth2/v2/auth?...",
-  "next_step": "redirect_to_google_oauth",
-  "firebase_data": {
-    "firebase_uid": "7Mpj4mMlmNbyOU7k1GbwWmvSv12",
-    "user_name": "田中太郎",
-    "user_icon": "https://lh3.googleusercontent.com/...",
-    "email": "tanaka@example.com"
-  }
-}
-```
-
-**🎯 新規ユーザー (Google Access Token提供済み - GitHub OAuth直行):**
-```json
-{
-  "success": true,
-  "message": "Firebase認証成功。GitHub認証を開始してください。",
-  "is_new_user": true,
-  "temp_session_token": "eyJhbGciOiJIUzI1NiIs...",
-  "github_oauth_url": "https://github.com/login/oauth/authorize?...",
-  "next_step": "redirect_to_github_oauth",
-  "google_data": {
-    "google_id": "109919588014687104867",
-    "name": "田中太郎",
-    "email": "tanaka@example.com",
-    "picture": "https://lh3.googleusercontent.com/..."
-  }
-}
-```
+> **💡 重要**: `state`はCSRF保護のためのパラメータです。フロントエンドで保存してください。
 
 ---
 
@@ -105,14 +49,31 @@
 
 ### Response Types
 
-**📱 Mobile/API Response (JSON):**
+**✅ 既存ユーザー (ログイン完了):**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "is_new_user": false,
+  "session_token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "user_id": "user_1720024567_abc123def456",
+    "user_name": "田中太郎",
+    "user_icon": "https://lh3.googleusercontent.com/...",
+    "email": "tanaka@example.com"
+  }
+}
+```
+
+**🆕 新規ユーザー (GitHub OAuth継続):**
 ```json
 {
   "success": true,
   "message": "Google OAuth認証成功。GitHub認証を開始してください。",
-  "temp_session_token": "eyJhbGciOiJIUzI1NiIs...",
-  "github_oauth_url": "https://github.com/login/oauth/authorize?...",
+  "is_new_user": true,
   "next_step": "redirect_to_github_oauth",
+  "temp_session_token": "temp_abc123def456ghi789",
+  "github_oauth_url": "https://github.com/login/oauth/authorize?...",
   "google_data": {
     "google_id": "109919588014687104867",
     "name": "田中太郎",
@@ -124,7 +85,7 @@
 
 **🌐 Web Response (Redirect):**
 ```
-Redirect to: /auth/callback?success=true&message=...&temp_session_token=...&github_oauth_url=...
+Web requests are automatically redirected to the frontend callback page
 ```
 
 ---
@@ -198,66 +159,69 @@ const isWebRequest = userAgent.includes('Mozilla') && !userAgent.includes('Mobil
 
 ---
 
-## 🎯 **最適化されたFlow: Google Access Token直接提供**
-
-Firebase認証時に`google_access_token`が既に利用可能な場合（例：フロントエンドでFirebase Authentication + Google OAuth同時実行）、システムは自動的にGoogle OAuth stepをスキップしてGitHub OAuthに直接進みます。
-
-### 🚀 利点:
-- **高速化**: OAuth step数の削減（3step → 2step）
-- **UX向上**: 待機時間とpopup数削減
-- **効率性**: リソース使用量最適化
-
-### 💻 実装例:
-```javascript
-// Firebase Authentication with Google Provider
-const result = await signInWithPopup(auth, googleProvider);
-const firebaseToken = await result.user.getIdToken();
-const googleAccessToken = GoogleAuthProvider.credentialFromResult(result)?.accessToken;
-
-// Send both tokens to backend (Google OAuth step will be skipped)
-const response = await fetch('/api/auth/verify-firebase', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    firebase_id_token: firebaseToken,
-    google_access_token: googleAccessToken // Skip Google OAuth step
-  })
-});
-```
-
----
-
 ## 🔧 **フロントエンド実装ガイド**
 
-### OAuth Popup Handler
+### Complete OAuth Flow Example
 ```javascript
-// Handle OAuth popup flow
-async function handleOAuthFlow(oauthUrl) {
-  return new Promise((resolve, reject) => {
-    const popup = window.open(oauthUrl, 'oauth', 'width=500,height=600');
+async function startAuthFlow() {
+  try {
+    // Step 1: Get Google OAuth URL
+    const response = await fetch('http://localhost:3000/api/auth/google');
+    const data = await response.json();
     
-    const messageHandler = (event) => {
-      if (event.source !== popup) return;
-      
-      if (event.data.type === 'AUTH_SUCCESS') {
-        popup.close();
-        window.removeEventListener('message', messageHandler);
-        resolve(event.data.data);
-      } else if (event.data.type === 'AUTH_ERROR') {
-        popup.close();
-        window.removeEventListener('message', messageHandler);
-        reject(new Error(event.data.error));
+    if (!data.success) {
+      throw new Error(data.message);
+    }
+    
+    // Step 2: Open Google OAuth popup
+    const popup = window.open(data.google_oauth_url, 'oauth', 'width=500,height=600');
+    
+    // Step 3: Monitor popup for completion
+    const authResult = await monitorPopup(popup);
+    
+    // Step 4: Save auth data
+    saveAuthData(authResult);
+    
+    console.log('✅ Authentication successful!', authResult);
+  } catch (error) {
+    console.error('❌ Authentication failed:', error);
+  }
+}
+
+function monitorPopup(popup) {
+  return new Promise((resolve, reject) => {
+    const checkPopup = () => {
+      try {
+        if (popup.closed) {
+          reject(new Error('Popup closed by user'));
+          return;
+        }
+        
+        const url = popup.location.href;
+        if (url.includes('/auth/callback') && url.includes('success=true')) {
+          const params = new URLSearchParams(popup.location.search);
+          const result = {
+            success: params.get('success') === 'true',
+            session_token: params.get('session_token'),
+            user: JSON.parse(decodeURIComponent(params.get('user_data') || '{}')),
+            oauth_data: JSON.parse(decodeURIComponent(params.get('oauth_data') || '{}'))
+          };
+          
+          popup.close();
+          resolve(result);
+          return;
+        }
+      } catch (e) {
+        // Cross-origin error is expected, continue polling
       }
+      
+      setTimeout(checkPopup, 1000);
     };
     
-    window.addEventListener('message', messageHandler);
+    checkPopup();
   });
 }
-```
 
-### Session Token Storage
-```javascript
-// Save session token and user data
 function saveAuthData(authResult) {
   localStorage.setItem('session_token', authResult.session_token);
   localStorage.setItem('user_data', JSON.stringify(authResult.user));
@@ -267,20 +231,19 @@ function saveAuthData(authResult) {
 
 ---
 
-## 📋 **Token Expiry & Refresh**
+## 📋 **Token Management**
 
 ### Token有効期限:
 - **Google Access Token**: 1時間 (3600秒)
-- **GitHub Access Token**: 長期間 (数年、refresh token無し)
-- **Firebase ID Token**: 1時間 (Firebase SDKが自動更新)
+- **Google Refresh Token**: 長期間 (background更新用)
+- **GitHub Access Token**: 長期間 (refresh token無し)
 - **Session Token (JWT)**: 7日間
 
-### 🔄 Future Enhancement:
+### 🔄 Token Refresh (自動):
 ```javascript
-// Background token refresh service (将来実装予定)
-// - Google refresh token使用
-// - Firebase token自動更新
-// - Session token renewal
+// Background token refresh service (実装済み)
+// - Google refresh tokenでaccess token更新
+// - Session token自動renewal
 ```
 
 ---
@@ -297,46 +260,49 @@ function saveAuthData(authResult) {
 ```
 
 **📋 主要エラーコード:**
-- `INVALID_FIREBASE_TOKEN` - Firebase token無効
 - `OAUTH_ERROR` - OAuth認証エラー
-- `EMAIL_MISMATCH` - メールアドレス不一致
+- `MISSING_OAUTH_PARAMS` - OAuth パラメータ不足
+- `EMAIL_MISMATCH` - メールアドレス不一致 (Legacy flow)
 - `SESSION_EXPIRED` - セッション期限切れ
 - `GOOGLE_OAUTH_DATA_MISSING` - Google OAuth データ不足
-- `MISSING_OAUTH_PARAMS` - OAuth パラメータ不足
 - `OAUTH_PROCESSING_ERROR` - OAuth処理エラー
-- `POPUP_BLOCKED` - Popup blocked by browser
+- `OAUTH_INIT_FAILED` - OAuth初期化失敗
 
 ---
 
-## 🎯 **Production Checklist**
+## 🎯 **Production Ready Features**
 
-### ✅ 完了済み:
-- [x] Firebase Authentication integration
-- [x] Google OAuth flow with Fitness API scopes
-- [x] GitHub OAuth flow with repository access
+### ✅ 実装済み:
+- [x] Direct Google OAuth flow (No Firebase required)
+- [x] GitHub OAuth integration with repository access
 - [x] Database user creation and token storage
-- [x] Adaptive response (Web/Mobile)
-- [x] Comprehensive error handling
-- [x] Session token management
-- [x] Popup OAuth flow for web
+- [x] Google Fitness API scopes for activity data
+- [x] Adaptive response (Web redirect/Mobile JSON)
+- [x] Comprehensive error handling and logging
+- [x] Session token management (JWT)
+- [x] Popup OAuth flow for web applications
+- [x] CSRF protection with state parameters
+- [x] Google refresh token handling
 
-### 🔄 今後の改善:
-- [ ] Background token refresh service
-- [ ] Rate limiting for auth endpoints
-- [ ] Advanced security features
-- [ ] Mobile deep linking support
-- [ ] Auth analytics and monitoring
+### 🚀 Architecture Benefits:
+- **Simplified Flow**: 3 steps instead of 4 (no Firebase dependency)
+- **Better Performance**: Fewer API calls and redirects
+- **Enhanced Security**: CSRF protection, proper token management
+- **Mobile/Web Compatible**: Adaptive response system
+- **Production Ready**: Comprehensive logging and error handling
 
-**401 Unauthorized:**
-```json
-{
-  "success": false,
-  "message": "セッションが期限切れです",
-  "error_code": "SESSION_EXPIRED"
-}
-```
+---
 
-**500 Internal Server Error:**
+## 📱 **Legacy Flow (Backward Compatibility)**
+
+For applications still using Firebase Authentication, the legacy endpoints remain available:
+
+**POST** `/api/auth/verify-firebase`
+- Supports Firebase ID token verification
+- Can skip Google OAuth if `google_access_token` provided
+- Maintains backward compatibility
+
+> **💡 Recommendation**: New implementations should use the direct Google OAuth flow for better performance and simpler architecture.
 ```json
 {
   "success": false,

@@ -22,6 +22,7 @@ CREATE TABLE USERS (
     user_id VARCHAR(64) PRIMARY KEY,
     user_name VARCHAR(128) NOT NULL,
     user_icon VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
     point INT NOT NULL,
     google_access_token TEXT NOT NULL,
     google_refresh_token TEXT NOT NULL,

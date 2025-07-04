@@ -1,121 +1,110 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 
-import { User, onAuthStateChanged } from 'firebase/auth'
+interface User {
+    user_id: string
+    user_name: string
+    user_icon: string
+    email: string
+}
 
-import { AuthService, AuthUser } from '@/lib/auth'
-import { auth } from '@/lib/firebase'
+interface OAuthData {
+    google?: {
+        google_id: string
+        name: string
+        email: string
+        picture: string
+        connected: boolean
+        has_refresh_token?: boolean
+    }
+    github?: {
+        github_id: number
+        username: string
+        name: string
+        email: string
+        avatar_url: string
+        public_repos: number
+        followers: number
+        connected: boolean
+    }
+}
 
 interface AuthContextType {
-    firebaseUser: User | null
-    fithubUser: AuthUser | null
-    isLoading: boolean
+    user: User | null
+    oauthData: OAuthData | null
     sessionToken: string | null
-    login: () => Promise<void>
-    logout: () => Promise<void>
     isAuthenticated: boolean
+    login: (sessionToken: string, user: User, oauthData: OAuthData) => void
+    logout: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [firebaseUser, setFirebaseUser] = useState<User | null>(null)
-    const [fithubUser, setFithubUser] = useState<AuthUser | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
+export function AuthProvider({ children }: { children: ReactNode }) {
+    const [user, setUser] = useState<User | null>(null)
+    const [oauthData, setOauthData] = useState<OAuthData | null>(null)
     const [sessionToken, setSessionToken] = useState<string | null>(null)
 
+    // Load auth data from localStorage on mount
     useEffect(() => {
-        // Listen to Firebase auth state changes
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setFirebaseUser(user)
-            setIsLoading(false)
-        })
+        const savedToken = localStorage.getItem('session_token')
+        const savedUser = localStorage.getItem('user_data')
+        const savedOAuthData = localStorage.getItem('oauth_data')
 
-        // Load saved session data
-        const savedToken = AuthService.getSessionToken()
-        const savedUser = AuthService.getUserData()
-
-        if (savedToken && savedUser) {
-            setSessionToken(savedToken)
-            setFithubUser(savedUser)
+        if (savedToken && savedUser && savedOAuthData) {
+            try {
+                setSessionToken(savedToken)
+                setUser(JSON.parse(savedUser))
+                setOauthData(JSON.parse(savedOAuthData))
+            } catch (error) {
+                console.error('Error loading auth data:', error)
+                // Clear corrupted data
+                localStorage.removeItem('session_token')
+                localStorage.removeItem('user_data')
+                localStorage.removeItem('oauth_data')
+            }
         }
-
-        return () => unsubscribe()
     }, [])
 
-    const login = async () => {
-        try {
-            setIsLoading(true)
+    const login = (token: string, userData: User, oauthDataParam: OAuthData) => {
+        setSessionToken(token)
+        setUser(userData)
+        setOauthData(oauthDataParam)
 
-            // Step 1: Firebase Google Sign-in
-            const { firebaseToken, googleAccessToken } = await AuthService.signInWithGoogle()
-
-            // Step 2: Verify with backend
-            const response = await AuthService.verifyFirebase(firebaseToken, googleAccessToken)
-
-            if (!response.success) {
-                throw new Error(response.message || 'Authentication failed')
-            }
-
-            // Handle existing user (login complete)
-            if (!response.is_new_user && response.session_token && response.user) {
-                AuthService.saveSessionToken(response.session_token)
-                AuthService.saveUserData(response.user)
-                setSessionToken(response.session_token)
-                setFithubUser(response.user)
-                return
-            }
-
-            // Handle new user - need OAuth flow
-            if (response.is_new_user && response.temp_session_token) {
-                AuthService.saveTempSessionToken(response.temp_session_token)
-
-                // Determine next step
-                const oauthUrl = response.google_oauth_url || response.github_oauth_url
-
-                if (oauthUrl) {
-                    // Open OAuth flow
-                    await AuthService.handleOAuthFlow(oauthUrl)
-
-                    // After OAuth completes, you might want to refresh or redirect
-                    // For now, we'll just show a success message
-                    console.log('OAuth flow completed')
-                }
-            }
-        } catch (error) {
-            console.error('Login error:', error)
-            throw error
-        } finally {
-            setIsLoading(false)
-        }
+        // Save to localStorage
+        localStorage.setItem('session_token', token)
+        localStorage.setItem('user_data', JSON.stringify(userData))
+        localStorage.setItem('oauth_data', JSON.stringify(oauthDataParam))
     }
 
-    const logout = async () => {
-        try {
-            await AuthService.logout()
-            setFirebaseUser(null)
-            setFithubUser(null)
-            setSessionToken(null)
-        } catch (error) {
-            console.error('Logout error:', error)
-            throw error
-        }
+    const logout = () => {
+        setSessionToken(null)
+        setUser(null)
+        setOauthData(null)
+
+        // Clear localStorage
+        localStorage.removeItem('session_token')
+        localStorage.removeItem('user_data')
+        localStorage.removeItem('oauth_data')
     }
 
-    const isAuthenticated = !!(firebaseUser && sessionToken && fithubUser)
+    const isAuthenticated = !!(sessionToken && user)
 
-    const value: AuthContextType = {
-        firebaseUser,
-        fithubUser,
-        isLoading,
-        sessionToken,
-        login,
-        logout,
-        isAuthenticated,
-    }
-
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    return (
+        <AuthContext.Provider
+            value={{
+                user,
+                oauthData,
+                sessionToken,
+                isAuthenticated,
+                login,
+                logout,
+            }}
+        >
+            {children}
+        </AuthContext.Provider>
+    )
 }
 
 export function useAuth() {
