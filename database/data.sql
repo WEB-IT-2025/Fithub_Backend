@@ -75,7 +75,7 @@ CREATE TABLE GROUP_MEMBER (
 );
 
 CREATE TABLE EXERCISE (
-    user_id VARCHAR(20) NOT NULL,
+    user_id VARCHAR(64) NOT NULL,
     day TIMESTAMP NOT NULL,
     exercise_quantity INT NOT NULL,
     PRIMARY KEY (user_id, day),
@@ -229,9 +229,9 @@ INSERT INTO USERS VALUES
 
 -- PETS
 INSERT INTO PETS VALUES
-('p1', 'Dog', 'folder1',5,5),
-('p2', 'Cat', 'folder2',5,5),
-('p3', 'Rabbit', 'folder3',5,5);
+('p1', 'Dog', 'folder1'),
+('p2', 'Cat', 'folder2'),
+('p3', 'Rabbit', 'folder3');
 
 -- ITEMS
 INSERT INTO ITEMS VALUES
@@ -241,13 +241,13 @@ INSERT INTO ITEMS VALUES
 
 -- GROUP_INFO
 INSERT INTO GROUP_INFO VALUES
-('g1', '7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'Fitness Buddies', 10, 'bg1.jpg'),
+('g1', 'test_user_001_abc123def456ghi789', 'Fitness Buddies', 10, 'bg1.jpg'),
 ('g2', '9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 'Morning Runners', 8, 'bg2.jpg'),
 ('g3', '1Abc3oOKqRezSU9n3LIfaYqxTw34', 'Yoga Masters', 5, 'bg3.jpg');
 
 -- GROUP_MEMBER
 INSERT INTO GROUP_MEMBER VALUES
-('g1', '7Mpj4mMImNbyOU7k1IGbwWmvSv12'),
+('g1', 'test_user_001_abc123def456ghi789'),
 ('g1', '9Xyz2nNJpQcyRT8m2KHdxZpwUv23'),
 ('g2', '9Xyz2nNJpQcyRT8m2KHdxZpwUv23'),
 ('g2', '1Abc3oOKqRezSU9n3LIfaYqxTw34'),
@@ -256,20 +256,20 @@ INSERT INTO GROUP_MEMBER VALUES
 
 -- EXERCISE - Sample fitness data for testing
 INSERT INTO EXERCISE VALUES
-('7Mpj4mMImNbyOU7k1IGbwWmvSv12', '2025-07-03 00:00:00', 8500),
+('test_user_001_abc123def456ghi789', '2025-07-03 00:00:00', 8500),
 ('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', '2025-07-03 00:00:00', 12000),
 ('1Abc3oOKqRezSU9n3LIfaYqxTw34', '2025-07-03 00:00:00', 6500),
 ('4Def6pPLrSfaTW0o4MJgbZryUx45', '2025-07-03 00:00:00', 9200),
-('7Mpj4mMImNbyOU7k1IGbwWmvSv12', '2025-07-02 00:00:00', 7800),
+('test_user_001_abc123def456ghi789', '2025-07-02 00:00:00', 7800),
 ('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', '2025-07-02 00:00:00', 11500);
 
 -- CONTRIBUTIONS - GitHub contribution data
 INSERT INTO CONTRIBUTIONS VALUES
-('7Mpj4mMImNbyOU7k1IGbwWmvSv12', '2025-07-03 00:00:00', '5'),
+('test_user_001_abc123def456ghi789', '2025-07-03 00:00:00', '5'),
 ('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', '2025-07-03 00:00:00', '3'),
 ('1Abc3oOKqRezSU9n3LIfaYqxTw34', '2025-07-03 00:00:00', '8'),
 ('4Def6pPLrSfaTW0o4MJgbZryUx45', '2025-07-03 00:00:00', '2'),
-('7Mpj4mMImNbyOU7k1IGbwWmvSv12', '2025-07-02 00:00:00', '4'),
+('test_user_001_abc123def456ghi789', '2025-07-02 00:00:00', '4'),
 ('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', '2025-07-02 00:00:00', '6');
 
 -- MISSION - Fitness and coding challenges
@@ -282,23 +282,23 @@ INSERT INTO MISSION VALUES
 
 -- MISSION_CLEARD - Mission progress for users
 INSERT INTO MISSION_CLEARD VALUES
-('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'm1', 8000, 8500, TRUE, '2025-07-03 12:00:00', 15, 'daily'),
+('test_user_001_abc123def456ghi789', 'm1', 8000, 8500, TRUE, '2025-07-03 12:00:00', 15, 'daily'),
 ('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 'm2', 50000, 35000, FALSE, NULL, 100, 'weekly'),
 ('1Abc3oOKqRezSU9n3LIfaYqxTw34', 'm3', 7, 5, FALSE, NULL, 50, 'weekly'),
 ('4Def6pPLrSfaTW0o4MJgbZryUx45', 'm4', 30, 30, TRUE, '2025-07-03 08:30:00', 20, 'daily'),
-('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'm5', 5, 5, TRUE, '2025-07-03 18:00:00', 25, 'daily');
+('test_user_001_abc123def456ghi789', 'm5', 5, 5, TRUE, '2025-07-03 18:00:00', 25, 'daily');
 
 -- USERS_PETS - Pet assignments
 INSERT INTO USERS_PETS VALUES
-('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'p1', TRUE, 'Lucky', FALSE, 'M'),
-('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 'p2', TRUE, 'Whiskers', TRUE, 'S'),
-('1Abc3oOKqRezSU9n3LIfaYqxTw34', 'p3', FALSE, 'Fluffy', TRUE, 'L'),
-('4Def6pPLrSfaTW0o4MJgbZryUx45', 'p1', TRUE, 'Buddy', FALSE, 'M'),
-('5Ghi9qQMsSgbUX1p5NKhcAsyVy56', 'p2', TRUE, 'Shadow', TRUE, 'S');
+('test_user_001_abc123def456ghi789', 'p1', TRUE, 'Lucky', FALSE, 5, 5),
+('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 'p2', TRUE, 'Whiskers', TRUE, 5, 5),
+('1Abc3oOKqRezSU9n3LIfaYqxTw34', 'p3', FALSE, 'Fluffy', TRUE, 5, 5),
+('4Def6pPLrSfaTW0o4MJgbZryUx45', 'p1', TRUE, 'Buddy', FALSE, 5, 5),
+('5Ghi9qQMsSgbUX1p5NKhcAsyVy56', 'p2', TRUE, 'Shadow', TRUE, 5, 5);
 
 -- USERS_ITEMS - User inventory
 INSERT INTO USERS_ITEMS VALUES
-('7Mpj4mMImNbyOU7k1IGbwWmvSv12', 'i1', 3, 'toy', TRUE),
+('test_user_001_abc123def456ghi789', 'i1', 3, 'toy', TRUE),
 ('9Xyz2nNJpQcyRT8m2KHdxZpwUv23', 'i2', 2, 'food', FALSE),
 ('1Abc3oOKqRezSU9n3LIfaYqxTw34', 'i3', 1, 'toy', TRUE),
 ('4Def6pPLrSfaTW0o4MJgbZryUx45', 'i1', 1, 'toy', FALSE),

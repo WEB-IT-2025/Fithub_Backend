@@ -5,6 +5,7 @@ import { API_MESSAGES, AUTH_MESSAGES } from '~/constants/messages'
 import { asyncHandler } from '~/middlewares/asyncHandler'
 import { userModel } from '~/models/userModel'
 import { authTokenService } from '~/services/authTokenService'
+import { dataSyncService } from '~/services/dataSyncService'
 import { githubOAuthService } from '~/services/githubOAuthService'
 import { googleOAuthService } from '~/services/googleOAuthService'
 import { googleTokenRefreshService } from '~/services/googleTokenRefreshService'
@@ -55,6 +56,15 @@ export const googleOAuthCallback = asyncHandler(async (req: Request, res: Respon
                 email: googleUserInfo.email,
                 action: isLoginIntent ? 'login' : 'existing_user_registration_attempt',
             })
+
+            // Auto-sync user data after successful login
+            setTimeout(async () => {
+                try {
+                    await dataSyncService.syncUserData(existingUser.user_id)
+                } catch (syncError) {
+                    console.error('❌ [SYNC] Failed to sync user data after login:', syncError)
+                }
+            }, 1000) // Delay 1 second to not block the response
 
             const userAgent = req.headers['user-agent'] || ''
             const isWebRequest = userAgent.includes('Mozilla')
@@ -281,6 +291,15 @@ export const githubOAuthCallback = asyncHandler(async (req: Request, res: Respon
                 github_username: githubUserInfo.login,
             })
 
+            // Auto-sync user data after successful GitHub login
+            setTimeout(async () => {
+                try {
+                    await dataSyncService.syncUserData(existingUser.user_id)
+                } catch (syncError) {
+                    console.error('❌ [SYNC] Failed to sync user data after GitHub login:', syncError)
+                }
+            }, 1000) // Delay 1 second to not block the response
+
             const userAgent = req.headers['user-agent'] || ''
             const isWebRequest = userAgent.includes('Mozilla')
 
@@ -387,6 +406,15 @@ export const githubOAuthCallback = asyncHandler(async (req: Request, res: Respon
             user_name: googleOAuthData.google_user_info.name,
             email: googleOAuthData.google_user_info.email,
         })
+
+        // Auto-sync user data after successful registration
+        setTimeout(async () => {
+            try {
+                await dataSyncService.syncUserData(newUserId)
+            } catch (syncError) {
+                console.error('❌ [SYNC] Failed to sync user data after registration:', syncError)
+            }
+        }, 1000) // Delay 1 second to not block the response
 
         const userAgent = req.headers['user-agent'] || ''
         const isWebRequest = userAgent.includes('Mozilla') && !userAgent.includes('Mobile')

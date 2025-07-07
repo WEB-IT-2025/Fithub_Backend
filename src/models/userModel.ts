@@ -65,6 +65,17 @@ export const userModel = {
         return rows.length > 0
     },
 
+    // Find user by user_id
+    async findByUserId(userId: string): Promise<CompleteUser | null> {
+        const [rows] = await db.query<UserRow[]>('SELECT * FROM USERS WHERE user_id = ?', [userId])
+
+        if (rows.length === 0) {
+            return null
+        }
+
+        return rows[0]
+    },
+
     async findByGithubId(githubId: string): Promise<CompleteUser | null> {
         const [rows] = await db.query<UserRow[]>('SELECT * FROM USERS WHERE github_user_id = ?', [githubId])
 

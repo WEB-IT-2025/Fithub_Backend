@@ -123,6 +123,37 @@ export const googleOAuthService = {
         }
     },
 
+    // Get user's steps for today specifically
+    async getUserStepsToday(accessToken: string): Promise<number> {
+        try {
+            const fitnessData = await this.getFitnessData(accessToken)
+
+            // Extract step count from the fitness data
+            let totalSteps = 0
+
+            if (fitnessData.bucket && fitnessData.bucket.length > 0) {
+                for (const bucket of fitnessData.bucket) {
+                    if (bucket.dataset && bucket.dataset.length > 0) {
+                        for (const dataset of bucket.dataset) {
+                            if (dataset.point && dataset.point.length > 0) {
+                                for (const point of dataset.point) {
+                                    if (point.value && point.value.length > 0) {
+                                        totalSteps += point.value[0].intVal || 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return totalSteps
+        } catch (error) {
+            console.error('Failed to get user steps today:', error)
+            return 0 // Return 0 if error, don't throw
+        }
+    },
+
     // Refresh access token using refresh token
     async refreshAccessToken(refreshToken: string): Promise<GoogleTokenResponse> {
         try {
