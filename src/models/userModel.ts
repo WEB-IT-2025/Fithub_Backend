@@ -95,7 +95,6 @@ export const userModel = {
 
     // Create complete user with all OAuth data
     async createCompleteUser(userData: CompleteUserCreationData): Promise<void> {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { firebase_uid, user_name, user_icon, email, google_oauth, github_oauth } = userData
 
         // Calculate Google token expiry

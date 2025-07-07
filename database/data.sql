@@ -35,13 +35,13 @@ CREATE TABLE USERS (
 );
 
 CREATE TABLE PETS (
-    pet_id VARCHAR(255) PRIMARY KEY,
+    pet_id VARCHAR(64) PRIMARY KEY,
     pet_name VARCHAR(20) NOT NULL,
     pet_image_folder VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE ITEMS (
-    item_id VARCHAR(255) PRIMARY KEY,
+    item_id VARCHAR(64) PRIMARY KEY,
     item_name VARCHAR(50) NOT NULL,
     item_point INT NOT NULL,
     sold_count INT NOT NULL,
@@ -58,7 +58,7 @@ CREATE TABLE THRESHOLD (
 );
 
 CREATE TABLE GROUP_INFO (
-    group_id VARCHAR(255) PRIMARY KEY,
+    group_id VARCHAR(64) PRIMARY KEY,
     admin_id VARCHAR(255) NOT NULL,
     group_name VARCHAR(20) NOT NULL,
     max_person INT NOT NULL,
@@ -91,9 +91,9 @@ CREATE TABLE CONTRIBUTIONS (
 );
 
 CREATE TABLE MISSION (
-    mission_id VARCHAR(255) PRIMARY KEY,
+    mission_id VARCHAR(64) PRIMARY KEY,
     mission_name VARCHAR(50) NOT NULL,
-    mission_goal VARCHAR(255) NOT NULL,
+    mission_content VARCHAR(255) NOT NULL,
     reward_content VARCHAR(255) NOT NULL,
     mission_type VARCHAR(255) NOT NULL
 );
@@ -118,7 +118,8 @@ CREATE TABLE USERS_PETS (
     user_main_pet BOOLEAN NOT NULL,
     user_pet_name VARCHAR(20) NOT NULL,
     user_sub_pet BOOLEAN,
-    pet_size VARCHAR(10),
+    pet_size INT NOT NULL,
+    pet_states INT NOT NULL,
     PRIMARY KEY (user_id, pet_id),
     FOREIGN KEY (user_id) REFERENCES USERS(user_id),
     FOREIGN KEY (pet_id) REFERENCES PETS(pet_id)
@@ -228,9 +229,9 @@ INSERT INTO USERS VALUES
 
 -- PETS
 INSERT INTO PETS VALUES
-('p1', 'Dog', 'folder1'),
-('p2', 'Cat', 'folder2'),
-('p3', 'Rabbit', 'folder3');
+('p1', 'Dog', 'folder1',5,5),
+('p2', 'Cat', 'folder2',5,5),
+('p3', 'Rabbit', 'folder3',5,5);
 
 -- ITEMS
 INSERT INTO ITEMS VALUES
