@@ -1,17 +1,29 @@
 // src/routes/authRouter.ts
 import express from 'express'
-import { githubOAuthCallback, googleOAuthCallback, verifyFirebase } from '~/controllers/authController'
-import { handleValidationErrors, validateFirebaseVerification } from '~/middlewares/validation'
+import {
+    getTokenReport,
+    githubOAuthCallback,
+    googleOAuthCallback,
+    initiateGoogleOAuth,
+    loginWithGitHub,
+    loginWithGoogle,
+    refreshAllTokens,
+} from '~/controllers/authController'
+import { handleValidationErrors, validateOAuthCallback, validateOAuthInitiation } from '~/middlewares/validation'
 
 const router = express.Router()
 
-// POST /api/auth/verify-firebase - Step 1: Verify Firebase token
-router.post('/verify-firebase', validateFirebaseVerification, handleValidationErrors, verifyFirebase)
+// Registration OAuth Flow
+router.get('/google', validateOAuthInitiation, handleValidationErrors, initiateGoogleOAuth)
+router.get('/google/callback', validateOAuthCallback, handleValidationErrors, googleOAuthCallback)
+router.get('/github/callback', validateOAuthCallback, handleValidationErrors, githubOAuthCallback)
 
-// GET /api/auth/google/callback - Step 2: Handle Google OAuth callback
-router.get('/google/callback', googleOAuthCallback)
+// Login OAuth Flow
+router.get('/login/google', validateOAuthInitiation, handleValidationErrors, loginWithGoogle)
+router.get('/login/github', validateOAuthInitiation, handleValidationErrors, loginWithGitHub)
 
-// GET /api/auth/github/callback - Step 3: Handle GitHub OAuth callback (Final step)
-router.get('/github/callback', githubOAuthCallback)
+// Admin endpoints
+router.get('/admin/token-report', getTokenReport)
+router.post('/admin/refresh-all', refreshAllTokens)
 
 export default router

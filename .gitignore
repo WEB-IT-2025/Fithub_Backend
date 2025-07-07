@@ -15,9 +15,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # test auth files
 test-auth.html
 
-## front-end testing
-frontend-test/
-
 # Runtime data
 pids
 *.pid
