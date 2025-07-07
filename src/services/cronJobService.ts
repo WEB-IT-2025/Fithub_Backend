@@ -119,7 +119,7 @@ export const cronJobService = {
         const [rows] = await db.query(
             `SELECT user_id, user_name, google_refresh_token 
              FROM USERS 
-             WHERE google_token_expires_at <= DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+             WHERE google_token_expires_at <= DATE_ADD(NOW(), INTERVAL 35 MINUTE)
                AND google_refresh_token IS NOT NULL 
                AND google_refresh_token != ''`
         )
