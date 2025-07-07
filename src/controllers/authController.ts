@@ -61,7 +61,8 @@ export const googleOAuthCallback = asyncHandler(async (req: Request, res: Respon
 
             const responseData = {
                 success: true,
-                message: isLoginIntent ? AUTH_MESSAGES.GOOGLE_LOGIN_SUCCESS : AUTH_MESSAGES.GOOGLE_LOGIN_SUCCESS,
+                message:
+                    isLoginIntent ? AUTH_MESSAGES.GOOGLE_LOGIN_SUCCESS : AUTH_MESSAGES.GOOGLE_ACCOUNT_ALREADY_EXISTS,
                 is_new_user: false,
                 session_token: sessionToken,
                 user: {

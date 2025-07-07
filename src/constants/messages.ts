@@ -23,12 +23,14 @@ export const AUTH_MESSAGES = {
     GOOGLE_LOGIN_SUCCESS: 'Googleアカウントでのログインが成功しました',
     GOOGLE_REGISTRATION_SUCCESS:
         'Googleアカウントでの新規登録が成功しました。GitHubアカウントとの連携を行ってください。',
+    GOOGLE_ACCOUNT_ALREADY_EXISTS: 'このGoogleアカウントは既に登録されています。自動的にログインしました。',
     GOOGLE_OAUTH_FAILED: 'Google OAuth認証に失敗しました',
 
     // GitHub linking
     GITHUB_CODE_REQUIRED: 'GitHub認証コードが必要です',
     GITHUB_LINKING_SUCCESS: 'GitHubアカウントとの連携が完了しました',
     GITHUB_LOGIN_SUCCESS: 'GitHubアカウントでのログインが成功しました',
+    GITHUB_ACCOUNT_ALREADY_EXISTS: 'このGitHubアカウントは既に登録されています。自動的にログインしました。',
     GITHUB_ALREADY_LINKED: 'このGitHubアカウントは既に他のユーザーに連携されています',
     GITHUB_OAUTH_FAILED: 'GitHub OAuth認証に失敗しました',
 

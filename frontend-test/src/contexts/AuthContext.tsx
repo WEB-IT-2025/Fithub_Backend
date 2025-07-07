@@ -68,14 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [])
 
     const login = (token: string, userData: User, oauthDataParam: OAuthData) => {
-        console.log('🔐 [AUTH_CONTEXT] Login called with:', {
-            hasToken: !!token,
-            hasUserData: !!userData,
-            hasOAuthData: !!oauthDataParam,
-            userId: userData?.user_id,
-            userName: userData?.user_name,
-        })
-
         setSessionToken(token)
         setUser(userData)
         setOauthData(oauthDataParam)
@@ -84,8 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('session_token', token)
         localStorage.setItem('user_data', JSON.stringify(userData))
         localStorage.setItem('oauth_data', JSON.stringify(oauthDataParam))
-
-        console.log('✅ [AUTH_CONTEXT] Login state updated, isAuthenticated should be:', !!(token && userData))
     }
 
     const logout = () => {
@@ -103,13 +93,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Debug log for authentication state changes
     useEffect(() => {
-        console.log('🔍 [AUTH_CONTEXT] Authentication state changed:', {
+        console.log('🔍 [AUTH_CONTEXT] Authentication state:', {
             isAuthenticated,
-            hasSessionToken: !!sessionToken,
-            hasUser: !!user,
             userId: user?.user_id,
         })
-    }, [isAuthenticated, sessionToken, user])
+    }, [isAuthenticated, user])
 
     return (
         <AuthContext.Provider

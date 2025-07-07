@@ -61,19 +61,13 @@ export default function AuthPage() {
     }
 
     const handleAuthSuccess = (result: AuthResult) => {
-        console.log('🎯 [AUTH_SUCCESS] Handling auth success:', {
-            hasResult: !!result,
-            success: result?.success,
-            hasSessionToken: !!result?.session_token,
-            hasUser: !!result?.user,
-            hasOAuthData: !!result?.oauth_data,
-            result: result,
-        })
-
         if (result.success && result.session_token && result.user && result.oauth_data) {
-            console.log('✅ [AUTH_SUCCESS] All required data present, logging in...')
+            // Show message to user if available
+            if (result.message) {
+                console.log('📢 [AUTH_SUCCESS] Backend message:', result.message)
+            }
+
             login(result.session_token, result.user, result.oauth_data)
-            console.log('✅ [AUTH_SUCCESS] Login completed, redirecting to /hello...')
             router.push('/hello')
         } else {
             console.error('❌ [AUTH_SUCCESS] Missing required auth data:', {
@@ -81,6 +75,7 @@ export default function AuthPage() {
                 sessionToken: result?.session_token ? 'present' : 'missing',
                 user: result?.user ? 'present' : 'missing',
                 oauthData: result?.oauth_data ? 'present' : 'missing',
+                message: result?.message,
             })
         }
     }
@@ -94,11 +89,8 @@ export default function AuthPage() {
             setCurrentStep('Connecting to Google...')
 
             // Fetch Google OAuth URL from backend
-            console.log('🔗 [REGISTRATION] Fetching Google OAuth URL...')
             const response = await fetch(`${API_BASE_URL}/google`)
             const data = await response.json()
-
-            console.log('🔍 [REGISTRATION] Google OAuth response:', data)
 
             if (!data.success) {
                 throw new Error(data.message || 'Failed to get Google OAuth URL')
@@ -117,8 +109,6 @@ export default function AuthPage() {
 
             // Listen for popup messages
             const handleMessage = async (event: MessageEvent) => {
-                console.log('📨 [REGISTRATION] Received message:', event.data)
-
                 if (event.origin !== window.location.origin) return
 
                 if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
@@ -127,8 +117,6 @@ export default function AuthPage() {
                     popup.close()
 
                     // Start GitHub OAuth with temp_token
-                    console.log('🔗 [REGISTRATION] Starting GitHub OAuth with temp_token:', event.data.temp_token)
-
                     const githubPopup = window.open(
                         event.data.github_oauth_url,
                         'github-oauth',
@@ -141,8 +129,6 @@ export default function AuthPage() {
                     }
 
                     const handleGitHubMessage = async (gitHubEvent: MessageEvent) => {
-                        console.log('📨 [REGISTRATION] GitHub message:', gitHubEvent.data)
-
                         if (gitHubEvent.origin !== window.location.origin) return
 
                         if (gitHubEvent.data.type === 'GITHUB_OAUTH_SUCCESS') {
@@ -153,9 +139,8 @@ export default function AuthPage() {
                             handleAuthSuccess(gitHubEvent.data.result)
                             window.removeEventListener('message', handleGitHubMessage)
                         } else if (gitHubEvent.data.type === 'GITHUB_OAUTH_ERROR') {
-                            clearInterval(checkGitHubClosed) // Clear interval first
+                            clearInterval(checkGitHubClosed)
                             githubPopup.close()
-                            console.error('❌ [REGISTRATION] GitHub OAuth error:', gitHubEvent.data.error)
                             setError(gitHubEvent.data.error || 'GitHub authentication failed')
                             window.removeEventListener('message', handleGitHubMessage)
                         }
@@ -163,44 +148,46 @@ export default function AuthPage() {
 
                     window.addEventListener('message', handleGitHubMessage)
 
-                    // Check if GitHub popup was closed manually - but give it more time
+                    // Check if GitHub popup was closed manually
                     const checkGitHubClosed = setInterval(() => {
                         if (githubPopup.closed) {
                             clearInterval(checkGitHubClosed)
                             window.removeEventListener('message', handleGitHubMessage)
-                            // Only show error if we haven't processed a success message
                             if (!authCompleted && !error) {
                                 setError('GitHub authentication was cancelled')
                                 setIsLoading(false)
                                 setCurrentStep(null)
                             }
                         }
-                    }, 2000) // Increased from 1000ms to 2000ms
-                } else if (event.data.type === 'GOOGLE_OAUTH_ERROR') {
+                    }, 2000)
+                } else if (event.data.type === 'GOOGLE_EXISTING_USER') {
+                    setCurrentStep('Account already exists - logged in automatically!')
+                    setAuthCompleted(true) // Mark auth as completed
                     clearInterval(checkClosed) // Clear interval first
                     popup.close()
-                    console.error('❌ [REGISTRATION] Google OAuth error:', event.data.error)
+                    handleAuthSuccess(event.data.result)
+                    window.removeEventListener('message', handleMessage)
+                } else if (event.data.type === 'GOOGLE_OAUTH_ERROR') {
+                    clearInterval(checkClosed)
+                    popup.close()
                     setError(event.data.error || 'Google authentication failed')
                 }
 
                 window.removeEventListener('message', handleMessage)
             }
 
-            window.addEventListener('message', handleMessage)
-
-            // Check if popup was closed manually - increase timeout
+            window.addEventListener('message', handleMessage) // Check if popup was closed manually
             const checkClosed = setInterval(() => {
                 if (popup.closed) {
                     clearInterval(checkClosed)
                     window.removeEventListener('message', handleMessage)
-                    // Only show error if we haven't processed a success message
                     if (!authCompleted && !error) {
                         setError('Authentication was cancelled')
                         setIsLoading(false)
                         setCurrentStep(null)
                     }
                 }
-            }, 2000) // Increased from 1000ms to 2000ms
+            }, 2000)
         } catch (err) {
             console.error('❌ [REGISTRATION] Registration error:', err)
             setError(err instanceof Error ? err.message : 'Registration failed')
@@ -219,11 +206,8 @@ export default function AuthPage() {
             setCurrentStep('Logging in with Google...')
 
             // Get Google login URL
-            console.log('🔗 [LOGIN] Fetching Google login URL...')
             const response = await fetch(`${API_BASE_URL}/login/google`)
             const data = await response.json()
-
-            console.log('🔍 [LOGIN] Google login response:', data)
 
             if (!data.success) {
                 throw new Error(data.message || 'Failed to get Google login URL')
@@ -242,12 +226,16 @@ export default function AuthPage() {
 
             // Listen for callback
             const handleMessage = async (event: MessageEvent) => {
-                console.log('📨 [LOGIN] Google message:', event.data)
-
                 if (event.origin !== window.location.origin) return
 
                 if (event.data.type === 'GOOGLE_LOGIN_SUCCESS') {
                     setCurrentStep('Login successful!')
+                    setAuthCompleted(true) // Mark auth as completed
+                    popup.close()
+                    handleAuthSuccess(event.data.result)
+                    window.removeEventListener('message', handleMessage)
+                } else if (event.data.type === 'GOOGLE_EXISTING_USER') {
+                    setCurrentStep('Account already exists - logged in automatically!')
                     setAuthCompleted(true) // Mark auth as completed
                     popup.close()
                     handleAuthSuccess(event.data.result)
@@ -261,7 +249,6 @@ export default function AuthPage() {
                     window.removeEventListener('message', handleMessage)
                 } else if (event.data.type === 'GOOGLE_LOGIN_ERROR') {
                     popup.close()
-                    console.error('❌ [LOGIN] Google login error:', event.data.error)
                     setError(event.data.error || 'Google login failed')
                     window.removeEventListener('message', handleMessage)
                 }
@@ -300,11 +287,8 @@ export default function AuthPage() {
             setCurrentStep('Logging in with GitHub...')
 
             // Get GitHub login URL
-            console.log('🔗 [LOGIN] Fetching GitHub login URL...')
             const response = await fetch(`${API_BASE_URL}/login/github`)
             const data = await response.json()
-
-            console.log('🔍 [LOGIN] GitHub login response:', data)
 
             if (!data.success) {
                 throw new Error(data.message || 'Failed to get GitHub login URL')
@@ -323,12 +307,16 @@ export default function AuthPage() {
 
             // Listen for callback
             const handleMessage = async (event: MessageEvent) => {
-                console.log('📨 [LOGIN] GitHub message:', event.data)
-
                 if (event.origin !== window.location.origin) return
 
                 if (event.data.type === 'GITHUB_LOGIN_SUCCESS') {
                     setCurrentStep('Login successful!')
+                    setAuthCompleted(true) // Mark auth as completed
+                    popup.close()
+                    handleAuthSuccess(event.data.result)
+                    window.removeEventListener('message', handleMessage)
+                } else if (event.data.type === 'GITHUB_EXISTING_USER') {
+                    setCurrentStep('Account already exists - logged in automatically!')
                     setAuthCompleted(true) // Mark auth as completed
                     popup.close()
                     handleAuthSuccess(event.data.result)
@@ -342,7 +330,6 @@ export default function AuthPage() {
                     window.removeEventListener('message', handleMessage)
                 } else if (event.data.type === 'GITHUB_LOGIN_ERROR') {
                     popup.close()
-                    console.error('❌ [LOGIN] GitHub login error:', event.data.error)
                     setError(event.data.error || 'GitHub login failed')
                     window.removeEventListener('message', handleMessage)
                 }

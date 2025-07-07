@@ -38,215 +38,215 @@ export default function AuthCallbackPage() {
     } | null>(null)
 
     useEffect(() => {
-        // Get URL parameters
-        const success = searchParams.get('success') === 'true'
-        const error = searchParams.get('error') === 'true'
-        const googleSuccess = searchParams.get('google_success') === 'true'
-        const message = searchParams.get('message') ? decodeURIComponent(searchParams.get('message')!) : ''
-        const sessionToken = searchParams.get('session_token')
-        const userData = searchParams.get('user_data')
-        const oauthData = searchParams.get('oauth_data')
+        try {
+            // Get URL parameters
+            const success = searchParams.get('success') === 'true'
+            const error = searchParams.get('error') === 'true'
+            const googleSuccess = searchParams.get('google_success') === 'true'
+            const message = searchParams.get('message') ? decodeURIComponent(searchParams.get('message')!) : ''
+            const sessionToken = searchParams.get('session_token')
+            const userData = searchParams.get('user_data')
+            const oauthData = searchParams.get('oauth_data')
 
-        // Google OAuth intermediate result (new user)
-        const tempSessionToken = searchParams.get('temp_session_token')
-        const githubOAuthUrl = searchParams.get('github_oauth_url')
-        const googleData = searchParams.get('google_data')
+            // Google OAuth intermediate result (new user)
+            const tempSessionToken = searchParams.get('temp_session_token')
+            const githubOAuthUrl = searchParams.get('github_oauth_url')
+            const googleData = searchParams.get('google_data')
 
-        // Error cases
-        const errorCode = searchParams.get('error_code')
-        const suggestedAction = searchParams.get('suggested_action')
+            // Error cases
+            const errorCode = searchParams.get('error_code')
+            const suggestedAction = searchParams.get('suggested_action')
 
-        // 🔍 DEBUG: Log all parameters
-        console.log('🔔 [CALLBACK] Processing callback with parameters:', {
-            success,
-            error,
-            googleSuccess,
-            message,
-            sessionToken: sessionToken ? sessionToken.substring(0, 15) + '...' : null,
-            userData: userData ? 'present' : null,
-            oauthData: oauthData ? 'present' : null,
-            tempSessionToken: tempSessionToken ? tempSessionToken.substring(0, 15) + '...' : null,
-            githubOAuthUrl: githubOAuthUrl ? githubOAuthUrl.substring(0, 50) + '...' : null,
-            googleData: googleData ? 'present' : null,
-            errorCode,
-            suggestedAction,
-            currentURL: window.location.href,
-        })
+            let result
+            let messageType = 'AUTH_ERROR'
 
-        let result
-        let messageType = 'AUTH_ERROR'
+            if (googleSuccess && tempSessionToken && githubOAuthUrl) {
+                messageType = 'GOOGLE_OAUTH_SUCCESS'
+                result = {
+                    success: true,
+                    message,
+                    is_new_user: true,
+                    next_step: 'redirect_to_github_oauth',
+                    temp_session_token: tempSessionToken,
+                    github_oauth_url: decodeURIComponent(githubOAuthUrl),
+                    google_data: googleData ? JSON.parse(decodeURIComponent(googleData)) : undefined,
+                }
+            } else if (success && sessionToken && userData && oauthData) {
+                // This is final result (login or registration complete)
+                let parsedUserData, parsedOAuthData
+                try {
+                    parsedUserData = JSON.parse(decodeURIComponent(userData))
+                    parsedOAuthData = JSON.parse(decodeURIComponent(oauthData))
+                } catch (parseError) {
+                    console.error('❌ [CALLBACK] Failed to parse user/oauth data:', parseError)
+                    return
+                }
 
-        if (googleSuccess && tempSessionToken && githubOAuthUrl) {
-            // This is Google OAuth success for new user - need to continue with GitHub
-            console.log('🎯 [CALLBACK] Detected Google OAuth success for new user')
-            messageType = 'GOOGLE_OAUTH_SUCCESS'
-            result = {
-                success: true,
-                message,
-                is_new_user: true,
-                next_step: 'redirect_to_github_oauth',
-                temp_session_token: tempSessionToken,
-                github_oauth_url: decodeURIComponent(githubOAuthUrl),
-                google_data: googleData ? JSON.parse(decodeURIComponent(googleData)) : undefined,
-            }
-        } else if (success && sessionToken && userData && oauthData) {
-            // This is final result (login or registration complete)
-            console.log('🎯 [CALLBACK] Detected successful auth completion')
+                // Determine if this was Google or GitHub login/registration
+                const isNewUser = message.includes('アカウント作成') || message.includes('ようこそ')
+                const isExistingUser =
+                    message.includes('既に登録されています') || message.includes('自動的にログインしました')
+                const isGoogleAuth = message.includes('Google')
+                const isGitHubAuth = message.includes('GitHub') || message.includes('GitHubアカウント')
 
-            console.log('🔍 [CALLBACK] Raw data before parsing:', {
-                userData: userData ? userData.substring(0, 100) + '...' : null,
-                oauthData: oauthData ? oauthData.substring(0, 100) + '...' : null,
-            })
+                if (isNewUser) {
+                    messageType = 'GITHUB_OAUTH_SUCCESS' // Registration completion after GitHub
+                } else if (isExistingUser && isGoogleAuth) {
+                    messageType = 'GOOGLE_EXISTING_USER' // Existing user tried to register
+                } else if (isExistingUser && isGitHubAuth) {
+                    messageType = 'GITHUB_EXISTING_USER' // Existing user tried to register
+                } else if (isGoogleAuth) {
+                    messageType = 'GOOGLE_LOGIN_SUCCESS'
+                } else if (isGitHubAuth) {
+                    messageType = 'GITHUB_LOGIN_SUCCESS'
+                } else {
+                    messageType = 'AUTH_SUCCESS' // Generic success
+                }
 
-            let parsedUserData, parsedOAuthData
-            try {
-                parsedUserData = JSON.parse(decodeURIComponent(userData))
-                parsedOAuthData = JSON.parse(decodeURIComponent(oauthData))
+                result = {
+                    success,
+                    message,
+                    session_token: sessionToken,
+                    user: parsedUserData, // Change from user_data to user
+                    oauth_data: parsedOAuthData,
+                }
+            } else if (error || !success) {
+                // Error case
+                messageType = 'AUTH_ERROR'
 
-                console.log('🔍 [CALLBACK] Parsed data:', {
-                    parsedUserData,
-                    parsedOAuthData,
-                })
-            } catch (parseError) {
-                console.error('❌ [CALLBACK] Failed to parse user/oauth data:', parseError)
-                console.error('❌ [CALLBACK] Raw userData:', userData)
-                console.error('❌ [CALLBACK] Raw oauthData:', oauthData)
-                return
-            }
+                // Determine specific error type
+                if (message.includes('Google')) {
+                    messageType = 'GOOGLE_OAUTH_ERROR'
+                } else if (message.includes('GitHub')) {
+                    messageType = 'GITHUB_OAUTH_ERROR'
+                }
 
-            // Determine if this was Google or GitHub login/registration
-            const isNewUser = message.includes('アカウント作成') || message.includes('ようこそ')
-            const isGoogleAuth = message.includes('Google')
-            const isGitHubAuth = message.includes('GitHub') || message.includes('GitHubアカウント')
-
-            if (isNewUser) {
-                messageType = 'GITHUB_OAUTH_SUCCESS' // Registration completion after GitHub
-            } else if (isGoogleAuth) {
-                messageType = 'GOOGLE_LOGIN_SUCCESS'
-            } else if (isGitHubAuth) {
-                messageType = 'GITHUB_LOGIN_SUCCESS'
+                result = {
+                    success: false,
+                    message,
+                    error_code: errorCode || undefined,
+                    suggested_action: suggestedAction || undefined,
+                }
             } else {
-                messageType = 'AUTH_SUCCESS' // Generic success
+                // Unknown case
+                result = {
+                    success: false,
+                    message: message || 'Unknown authentication result',
+                }
             }
 
-            console.log('🔍 [CALLBACK] Message type detection:', {
-                message,
-                isNewUser,
-                isGoogleAuth,
-                isGitHubAuth,
-                finalMessageType: messageType,
-            })
+            setResult(result)
 
-            result = {
-                success,
-                message,
-                session_token: sessionToken,
-                user: parsedUserData, // Change from user_data to user
-                oauth_data: parsedOAuthData,
-            }
-        } else if (error || !success) {
-            // Error case
-            console.log('🎯 [CALLBACK] Detected auth error')
-            messageType = 'AUTH_ERROR'
+            // Post message to parent window (popup opener)
+            if (window.opener) {
+                if (messageType === 'GOOGLE_OAUTH_SUCCESS') {
+                    // Google OAuth intermediate result - pass data for GitHub redirect
+                    window.opener.postMessage(
+                        {
+                            type: 'GOOGLE_OAUTH_SUCCESS',
+                            temp_token: result.temp_session_token,
+                            github_oauth_url: result.github_oauth_url,
+                            google_data: result.google_data,
+                        },
+                        '*'
+                    )
+                } else if (messageType === 'GITHUB_OAUTH_SUCCESS') {
+                    // Registration complete
+                    window.opener.postMessage(
+                        {
+                            type: 'GITHUB_OAUTH_SUCCESS',
+                            result: result,
+                        },
+                        '*'
+                    )
+                } else if (messageType === 'GOOGLE_LOGIN_SUCCESS') {
+                    // Google login complete
+                    window.opener.postMessage(
+                        {
+                            type: 'GOOGLE_LOGIN_SUCCESS',
+                            result: result,
+                        },
+                        '*'
+                    )
+                } else if (messageType === 'GITHUB_LOGIN_SUCCESS') {
+                    // GitHub login complete
+                    window.opener.postMessage(
+                        {
+                            type: 'GITHUB_LOGIN_SUCCESS',
+                            result: result,
+                        },
+                        '*'
+                    )
+                } else if (messageType === 'GOOGLE_EXISTING_USER') {
+                    // Google existing user auto-login
+                    window.opener.postMessage(
+                        {
+                            type: 'GOOGLE_EXISTING_USER',
+                            result: result,
+                        },
+                        '*'
+                    )
+                } else if (messageType === 'GITHUB_EXISTING_USER') {
+                    // GitHub existing user auto-login
+                    window.opener.postMessage(
+                        {
+                            type: 'GITHUB_EXISTING_USER',
+                            result: result,
+                        },
+                        '*'
+                    )
+                } else if (messageType.includes('ERROR')) {
+                    // Error cases
+                    window.opener.postMessage(
+                        {
+                            type: messageType,
+                            error: result.message,
+                            error_code: result.error_code,
+                            suggested_action: result.suggested_action,
+                        },
+                        '*'
+                    )
+                } else {
+                    // Fallback
+                    window.opener.postMessage(
+                        {
+                            type: 'AUTH_ERROR',
+                            error: result.message || 'Unknown error',
+                        },
+                        '*'
+                    )
+                }
 
-            // Determine specific error type
-            if (message.includes('Google')) {
-                messageType = 'GOOGLE_OAUTH_ERROR'
-            } else if (message.includes('GitHub')) {
-                messageType = 'GITHUB_OAUTH_ERROR'
-            }
-
-            result = {
-                success: false,
-                message,
-                error_code: errorCode || undefined,
-                suggested_action: suggestedAction || undefined,
-            }
-        } else {
-            // Unknown case
-            console.log('🎯 [CALLBACK] Unknown callback state')
-            result = {
-                success: false,
-                message: message || 'Unknown authentication result',
-            }
-        }
-
-        setResult(result)
-
-        // Post message to parent window (popup opener)
-        if (window.opener) {
-            console.log('📤 [CALLBACK] Sending message to parent:', {
-                messageType,
-                result,
-            })
-
-            if (messageType === 'GOOGLE_OAUTH_SUCCESS') {
-                // Google OAuth intermediate result - pass data for GitHub redirect
-                window.opener.postMessage(
-                    {
-                        type: 'GOOGLE_OAUTH_SUCCESS',
-                        temp_token: result.temp_session_token,
-                        github_oauth_url: result.github_oauth_url,
-                        google_data: result.google_data,
-                    },
-                    '*'
-                )
-            } else if (messageType === 'GITHUB_OAUTH_SUCCESS') {
-                // Registration complete
-                window.opener.postMessage(
-                    {
-                        type: 'GITHUB_OAUTH_SUCCESS',
-                        result: result,
-                    },
-                    '*'
-                )
-            } else if (messageType === 'GOOGLE_LOGIN_SUCCESS') {
-                // Google login complete
-                window.opener.postMessage(
-                    {
-                        type: 'GOOGLE_LOGIN_SUCCESS',
-                        result: result,
-                    },
-                    '*'
-                )
-            } else if (messageType === 'GITHUB_LOGIN_SUCCESS') {
-                // GitHub login complete
-                window.opener.postMessage(
-                    {
-                        type: 'GITHUB_LOGIN_SUCCESS',
-                        result: result,
-                    },
-                    '*'
-                )
-            } else if (messageType.includes('ERROR')) {
-                // Error cases
-                window.opener.postMessage(
-                    {
-                        type: messageType,
-                        error: result.message,
-                        error_code: result.error_code,
-                        suggested_action: result.suggested_action,
-                    },
-                    '*'
-                )
+                // Auto-close popup after posting message
+                setTimeout(() => {
+                    window.close()
+                }, 1500)
             } else {
-                // Fallback
-                window.opener.postMessage(
-                    {
-                        type: 'AUTH_ERROR',
-                        error: result.message || 'Unknown error',
-                    },
-                    '*'
-                )
+                console.error('❌ [CALLBACK] No window.opener found - cannot send message to parent')
             }
+        } catch (callbackError) {
+            console.error('❌ [CALLBACK] Error in callback processing:', callbackError)
+            console.error(
+                '❌ [CALLBACK] Error stack:',
+                callbackError instanceof Error ? callbackError.stack : 'No stack trace'
+            )
 
-            // Auto-close popup after posting message
-            setTimeout(() => {
-                console.log('🔒 [CALLBACK] Auto-closing popup window')
-                window.close()
-            }, 1500) // Increased from 1000ms to 1500ms
-        } else {
-            console.error('❌ [CALLBACK] No window.opener found - cannot send message to parent')
+            // Try to send error message to parent if possible
+            if (window.opener) {
+                try {
+                    window.opener.postMessage(
+                        {
+                            type: 'AUTH_ERROR',
+                            error:
+                                'Callback processing error: ' +
+                                (callbackError instanceof Error ? callbackError.message : String(callbackError)),
+                        },
+                        '*'
+                    )
+                } catch (postMessageError) {
+                    console.error('❌ [CALLBACK] Failed to send error message to parent:', postMessageError)
+                }
+            }
         }
     }, [searchParams])
 

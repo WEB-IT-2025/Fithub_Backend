@@ -66,23 +66,7 @@ export const userModel = {
     },
 
     async findByGithubId(githubId: string): Promise<CompleteUser | null> {
-        console.log('🔍 [DB] Finding user by GitHub ID:', { githubId })
-
         const [rows] = await db.query<UserRow[]>('SELECT * FROM USERS WHERE github_user_id = ?', [githubId])
-
-        console.log('🔍 [DB] GitHub ID query result:', {
-            githubId,
-            rowsFound: rows.length,
-            firstRow:
-                rows.length > 0 ?
-                    {
-                        user_id: rows[0].user_id,
-                        user_name: rows[0].user_name,
-                        email: rows[0].email,
-                        github_user_id: rows[0].github_user_id,
-                    }
-                :   null,
-        })
 
         if (rows.length === 0) {
             return null
@@ -111,18 +95,6 @@ export const userModel = {
 
         // Calculate Google token expiry
         const googleExpiresAt = new Date(Date.now() + google_oauth.expires_in * 1000)
-
-        console.log('💾 [DB] Creating user with data:', {
-            user_id: userId,
-            user_name: name,
-            user_icon: picture,
-            email: email,
-            hasGoogleAccessToken: !!google_oauth.access_token,
-            hasGoogleRefreshToken: !!google_oauth.refresh_token,
-            googleExpiresAt: googleExpiresAt.toISOString(),
-            githubUserId: github_oauth.github_user_id,
-            githubUsername: github_oauth.github_username,
-        })
 
         await db.query(
             `INSERT INTO USERS 
