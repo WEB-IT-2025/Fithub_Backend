@@ -88,10 +88,12 @@ export const googleOAuthService = {
         }
     },
 
-    // Get Google Fit activity data (example)
+    // Get Google Fit activity data for the last 7 days (FOR LEGACY/TESTING - use getUserWeeklySteps instead)
     async getFitnessData(accessToken: string): Promise<GoogleFitnessData> {
         try {
-            // Example: Get step count data for the last 7 days
+            // ⚠️ NOTE: This function gets 7 DAYS of data, not just today!
+            // For today's data only, use getUserStepsToday()
+            // For weekly data, use getUserWeeklySteps()
             const endTime = new Date().getTime()
             const startTime = endTime - 7 * 24 * 60 * 60 * 1000 // 7 days ago
 
@@ -126,9 +128,37 @@ export const googleOAuthService = {
     // Get user's steps for today specifically
     async getUserStepsToday(accessToken: string): Promise<number> {
         try {
-            const fitnessData = await this.getFitnessData(accessToken)
+            // Get start and end time for today only
+            const today = new Date()
+            today.setHours(0, 0, 0, 0) // Start of today
+            const startTime = today.getTime()
 
-            // Extract step count from the fitness data
+            const endOfToday = new Date()
+            endOfToday.setHours(23, 59, 59, 999) // End of today
+            const endTime = endOfToday.getTime()
+
+            const response = await axios.post(
+                'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',
+                {
+                    aggregateBy: [
+                        {
+                            dataTypeName: 'com.google.step_count.delta',
+                            dataSourceId: 'derived:com.google.step_count.delta:com.google.android.gms:estimated_steps',
+                        },
+                    ],
+                    bucketByTime: { durationMillis: 86400000 }, // 1 day buckets
+                    startTimeMillis: startTime,
+                    endTimeMillis: endTime,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            )
+
+            const fitnessData = response.data
             let totalSteps = 0
 
             if (fitnessData.bucket && fitnessData.bucket.length > 0) {
@@ -151,6 +181,131 @@ export const googleOAuthService = {
         } catch (error) {
             console.error('Failed to get user steps today:', error)
             return 0 // Return 0 if error, don't throw
+        }
+    },
+
+    // Get user's steps for a specific date
+    async getUserStepsForDate(accessToken: string, date: Date): Promise<number> {
+        try {
+            // Get start and end time for the specific date
+            const startOfDay = new Date(date)
+            startOfDay.setHours(0, 0, 0, 0)
+            const startTime = startOfDay.getTime()
+
+            const endOfDay = new Date(date)
+            endOfDay.setHours(23, 59, 59, 999)
+            const endTime = endOfDay.getTime()
+
+            const response = await axios.post(
+                'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',
+                {
+                    aggregateBy: [
+                        {
+                            dataTypeName: 'com.google.step_count.delta',
+                            dataSourceId: 'derived:com.google.step_count.delta:com.google.android.gms:estimated_steps',
+                        },
+                    ],
+                    bucketByTime: { durationMillis: 86400000 }, // 1 day buckets
+                    startTimeMillis: startTime,
+                    endTimeMillis: endTime,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            )
+
+            const fitnessData = response.data
+            let totalSteps = 0
+
+            if (fitnessData.bucket && fitnessData.bucket.length > 0) {
+                for (const bucket of fitnessData.bucket) {
+                    if (bucket.dataset && bucket.dataset.length > 0) {
+                        for (const dataset of bucket.dataset) {
+                            if (dataset.point && dataset.point.length > 0) {
+                                for (const point of dataset.point) {
+                                    if (point.value && point.value.length > 0) {
+                                        totalSteps += point.value[0].intVal || 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return totalSteps
+        } catch (error) {
+            console.error(`Failed to get user steps for ${date.toDateString()}:`, error)
+            return 0
+        }
+    },
+
+    // Get user's weekly steps (last 7 days including today)
+    async getUserWeeklySteps(accessToken: string): Promise<{ date: string; steps: number }[]> {
+        try {
+            // Get start and end time for the last 7 days
+            const endTime = new Date()
+            endTime.setHours(23, 59, 59, 999)
+
+            const startTime = new Date()
+            startTime.setDate(startTime.getDate() - 6) // 7 days including today
+            startTime.setHours(0, 0, 0, 0)
+
+            const response = await axios.post(
+                'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',
+                {
+                    aggregateBy: [
+                        {
+                            dataTypeName: 'com.google.step_count.delta',
+                            dataSourceId: 'derived:com.google.step_count.delta:com.google.android.gms:estimated_steps',
+                        },
+                    ],
+                    bucketByTime: { durationMillis: 86400000 }, // 1 day buckets
+                    startTimeMillis: startTime.getTime(),
+                    endTimeMillis: endTime.getTime(),
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            )
+
+            const fitnessData = response.data
+            const weeklyData: { date: string; steps: number }[] = []
+
+            if (fitnessData.bucket && fitnessData.bucket.length > 0) {
+                for (const bucket of fitnessData.bucket) {
+                    const bucketDate = new Date(parseInt(bucket.startTimeMillis))
+                    let dailySteps = 0
+
+                    if (bucket.dataset && bucket.dataset.length > 0) {
+                        for (const dataset of bucket.dataset) {
+                            if (dataset.point && dataset.point.length > 0) {
+                                for (const point of dataset.point) {
+                                    if (point.value && point.value.length > 0) {
+                                        dailySteps += point.value[0].intVal || 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    weeklyData.push({
+                        date: bucketDate.toISOString().split('T')[0], // YYYY-MM-DD format
+                        steps: dailySteps,
+                    })
+                }
+            }
+
+            return weeklyData
+        } catch (error) {
+            console.error('Failed to get user weekly steps:', error)
+            return []
         }
     },
 

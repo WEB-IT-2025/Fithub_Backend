@@ -146,56 +146,6 @@ export const githubOAuthService = {
     },
 
     // Get user's contribution data (commits, repos, etc.)
-    // Get user's contributions for today specifically
-    async getUserContributionsToday(accessToken: string, username: string): Promise<number> {
-        try {
-            // Get recent events for the user
-            const response = await axios.get(`https://api.github.com/users/${username}/events`, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    Accept: 'application/vnd.github.v3+json',
-                },
-                params: {
-                    per_page: 100, // Get recent events
-                },
-            })
-
-            // Filter events for today only
-            const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
-            const todayEvents = response.data.filter(
-                (event: { created_at: string; type: string; payload?: { commits?: unknown[] } }) => {
-                    const eventDate = new Date(event.created_at).toISOString().split('T')[0]
-                    return (
-                        eventDate === today &&
-                        (event.type === 'PushEvent' ||
-                            event.type === 'CreateEvent' ||
-                            event.type === 'PullRequestEvent' ||
-                            event.type === 'IssuesEvent')
-                    )
-                }
-            )
-
-            // Count commits from PushEvents specifically
-            let todayContributions = 0
-            for (const event of todayEvents) {
-                if (event.type === 'PushEvent' && event.payload && event.payload.commits) {
-                    todayContributions += event.payload.commits.length
-                } else if (
-                    event.type === 'CreateEvent' ||
-                    event.type === 'PullRequestEvent' ||
-                    event.type === 'IssuesEvent'
-                ) {
-                    todayContributions += 1
-                }
-            }
-
-            return todayContributions
-        } catch (error) {
-            console.error('Failed to get user contributions today:', error)
-            return 0 // Return 0 if error, don't throw
-        }
-    },
-
     async getUserContributions(accessToken: string, username: string): Promise<GitHubContributionData> {
         try {
             // Get user's contribution stats from GitHub API
@@ -261,6 +211,56 @@ export const githubOAuthService = {
         } catch (error) {
             console.error('GitHub repos fetch error:', error)
             throw new Error('Failed to fetch user repositories from GitHub')
+        }
+    },
+
+    // Get user's contributions for today specifically (from GitHub API)
+    async getUserContributionsToday(accessToken: string, username: string): Promise<number> {
+        try {
+            // Get recent events for the user
+            const response = await axios.get(`https://api.github.com/users/${username}/events`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    Accept: 'application/vnd.github.v3+json',
+                },
+                params: {
+                    per_page: 100, // Get recent events
+                },
+            })
+
+            // Filter events for today only
+            const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+            const todayEvents = response.data.filter(
+                (event: { created_at: string; type: string; payload?: { commits?: unknown[] } }) => {
+                    const eventDate = new Date(event.created_at).toISOString().split('T')[0]
+                    return (
+                        eventDate === today &&
+                        (event.type === 'PushEvent' ||
+                            event.type === 'CreateEvent' ||
+                            event.type === 'PullRequestEvent' ||
+                            event.type === 'IssuesEvent')
+                    )
+                }
+            )
+
+            // Count commits from PushEvents specifically
+            let todayContributions = 0
+            for (const event of todayEvents) {
+                if (event.type === 'PushEvent' && event.payload && event.payload.commits) {
+                    todayContributions += event.payload.commits.length
+                } else if (
+                    event.type === 'CreateEvent' ||
+                    event.type === 'PullRequestEvent' ||
+                    event.type === 'IssuesEvent'
+                ) {
+                    todayContributions += 1
+                }
+            }
+
+            return todayContributions
+        } catch (error) {
+            console.error('Failed to get user contributions today:', error)
+            return 0 // Return 0 if error, don't throw
         }
     },
 }

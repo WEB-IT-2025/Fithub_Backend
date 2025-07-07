@@ -198,4 +198,112 @@ export const dataSyncService = {
             console.error('❌ [SYNC] Failed to create daily records:', error)
         }
     },
+
+    // Get weekly steps from database (last 7 days including today)
+    async getWeeklyStepsFromDatabase(userId: string): Promise<{ date: string; steps: number }[]> {
+        try {
+            const [rows] = await db.query(
+                `SELECT day, exercise_quantity as steps 
+                 FROM EXERCISE 
+                 WHERE user_id = ? 
+                   AND day >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                   AND day <= CURDATE()
+                 ORDER BY day ASC`,
+                [userId]
+            )
+
+            const weeklyData = (rows as { day: Date; steps: number }[]).map((row) => ({
+                date: row.day.toISOString().split('T')[0],
+                steps: row.steps,
+            }))
+
+            return weeklyData
+        } catch (error) {
+            console.error(`Failed to get weekly steps from database for ${userId}:`, error)
+            return []
+        }
+    },
+
+    // Get weekly contributions from database (last 7 days including today)
+    async getWeeklyContributionsFromDatabase(userId: string): Promise<{ date: string; contributions: number }[]> {
+        try {
+            const [rows] = await db.query(
+                `SELECT day, count as contributions 
+                 FROM CONTRIBUTIONS 
+                 WHERE user_id = ? 
+                   AND day >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+                   AND day <= CURDATE()
+                 ORDER BY day ASC`,
+                [userId]
+            )
+
+            const weeklyData = (rows as { day: Date; contributions: string }[]).map((row) => ({
+                date: row.day.toISOString().split('T')[0],
+                contributions: parseInt(row.contributions) || 0,
+            }))
+
+            return weeklyData
+        } catch (error) {
+            console.error(`Failed to get weekly contributions from database for ${userId}:`, error)
+            return []
+        }
+    },
+
+    // Get monthly steps from database (last 30 days including today)
+    async getMonthlyStepsFromDatabase(
+        userId: string
+    ): Promise<{ total: number; daily: { date: string; steps: number }[] }> {
+        try {
+            const [rows] = await db.query(
+                `SELECT day, exercise_quantity as steps 
+                 FROM EXERCISE 
+                 WHERE user_id = ? 
+                   AND day >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
+                   AND day <= CURDATE()
+                 ORDER BY day ASC`,
+                [userId]
+            )
+
+            const dailyData = (rows as { day: Date; steps: number }[]).map((row) => ({
+                date: row.day.toISOString().split('T')[0],
+                steps: row.steps,
+            }))
+
+            const total = dailyData.reduce((sum, day) => sum + day.steps, 0)
+
+            return { total, daily: dailyData }
+        } catch (error) {
+            console.error(`Failed to get monthly steps from database for ${userId}:`, error)
+            return { total: 0, daily: [] }
+        }
+    },
+
+    // Get monthly contributions from database (last 30 days including today)
+    async getMonthlyContributionsFromDatabase(
+        userId: string
+    ): Promise<{ total: number; daily: { date: string; contributions: number }[] }> {
+        try {
+            const [rows] = await db.query(
+                `SELECT day, count as contributions 
+                 FROM CONTRIBUTIONS 
+                 WHERE user_id = ? 
+                   AND day >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
+                   AND day <= CURDATE()
+                 ORDER BY day ASC`,
+                [userId]
+            )
+
+            const dailyData = (rows as { day: Date; contributions: string }[]).map((row) => ({
+                date: row.day.toISOString().split('T')[0],
+                contributions: parseInt(row.contributions) || 0,
+            }))
+
+            const total = dailyData.reduce((sum, day) => sum + day.contributions, 0)
+
+            return { total, daily: dailyData }
+        } catch (error) {
+            console.error(`Failed to get monthly contributions from database for ${userId}:`, error)
+            return { total: 0, daily: [] }
+        }
+    },
 }
