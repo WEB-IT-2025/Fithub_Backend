@@ -1,28 +1,27 @@
 // src/routes/authRouter.ts
 import express from 'express'
 import {
+    getTokenReport,
     githubOAuthCallback,
     googleOAuthCallback,
     initiateGoogleOAuth,
-    // Legacy endpoints (can be removed later)
+    refreshAllTokens,
     verifyFirebase,
 } from '~/controllers/authController'
 import { handleValidationErrors, validateFirebaseVerification } from '~/middlewares/validation'
 
 const router = express.Router()
 
-// NEW FLOW: Direct Google OAuth
-// GET /api/auth/google - Step 1: Initiate Google OAuth (get auth URL)
+// Google OAuth Flow
 router.get('/google', initiateGoogleOAuth)
-
-// GET /api/auth/google/callback - Step 2: Handle Google OAuth callback
 router.get('/google/callback', googleOAuthCallback)
-
-// GET /api/auth/github/callback - Step 3: Handle GitHub OAuth callback (Final step)
 router.get('/github/callback', githubOAuthCallback)
 
-// LEGACY ENDPOINTS (for backward compatibility, can be removed later)
-// POST /api/auth/verify-firebase - Old Step 1: Verify Firebase token
+// Legacy Firebase endpoint
 router.post('/verify-firebase', validateFirebaseVerification, handleValidationErrors, verifyFirebase)
+
+// Admin endpoints
+router.get('/admin/token-report', getTokenReport)
+router.post('/admin/refresh-all', refreshAllTokens)
 
 export default router

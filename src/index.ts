@@ -4,6 +4,7 @@ import path from 'path'
 import { ENV } from './config/loadEnv'
 import publicRoutes from './routes/public'
 import webRoutes from './routes/web'
+import { googleTokenRefreshService } from './services/googleTokenRefreshService'
 
 const app = express()
 const port = ENV.PORT
@@ -45,4 +46,7 @@ app.use((req, res) => {
 // Start the server
 app.listen(port, () => {
     console.log('Server is running at http://' + host + ':' + port)
+
+    // Start Google token refresh service
+    googleTokenRefreshService.startCronJob()
 })
