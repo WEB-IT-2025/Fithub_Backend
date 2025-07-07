@@ -228,8 +228,8 @@ export const githubOAuthService = {
                 },
             })
 
-            // Filter events for today only
-            const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+            // Filter events for today only (Japan timezone)
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }) // YYYY-MM-DD format in JST
             const todayEvents = response.data.filter(
                 (event: { created_at: string; type: string; payload?: { commits?: unknown[] } }) => {
                     const eventDate = new Date(event.created_at).toISOString().split('T')[0]

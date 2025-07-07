@@ -123,19 +123,20 @@ export const googleOAuthService = {
             console.error('Google Fit data fetch error:', error)
             throw new Error('Failed to fetch fitness data from Google')
         }
-    },
-
-    // Get user's steps for today specifically
+    }, // Get user's steps for today specifically (Japan timezone)
     async getUserStepsToday(accessToken: string): Promise<number> {
         try {
-            // Get start and end time for today only
-            const today = new Date()
-            today.setHours(0, 0, 0, 0) // Start of today
-            const startTime = today.getTime()
+            // Get start and end time for today in Japan timezone
+            const now = new Date()
+            const japanDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })
 
-            const endOfToday = new Date()
-            endOfToday.setHours(23, 59, 59, 999) // End of today
-            const endTime = endOfToday.getTime()
+            // Create Japan timezone start of day (00:00:00 JST)
+            const todayJapan = new Date(japanDateStr + 'T00:00:00')
+            const startTime = todayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
+
+            // Create Japan timezone end of day (23:59:59 JST)
+            const endOfTodayJapan = new Date(japanDateStr + 'T23:59:59')
+            const endTime = endOfTodayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
 
             const response = await axios.post(
                 'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',

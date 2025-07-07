@@ -18,16 +18,16 @@ export interface ContributionData {
 }
 
 export const dataSyncService = {
-    // Get today's date in YYYY-MM-DD format
+    // Get today's date in YYYY-MM-DD format (Japan timezone)
     getTodayDate(): string {
-        return new Date().toISOString().split('T')[0]
+        return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })
     },
 
-    // Get yesterday's date in YYYY-MM-DD format
+    // Get yesterday's date in YYYY-MM-DD format (Japan timezone)
     getYesterdayDate(): string {
         const yesterday = new Date()
         yesterday.setDate(yesterday.getDate() - 1)
-        return yesterday.toISOString().split('T')[0]
+        return yesterday.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })
     },
 
     // Sync user's Google Fit data (steps)
