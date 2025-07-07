@@ -17,6 +17,19 @@ DROP TABLE IF EXISTS USERS;
 -- ============================
 -- 🧱 2. CREATE TABLES (PK → FK順)
 -- ============================
+-- 
+-- 🔄 ON DELETE CASCADE:
+-- All foreign keys referencing USERS have ON DELETE CASCADE
+-- This means when a user is deleted, all related data will be automatically deleted:
+-- - EXERCISE records
+-- - CONTRIBUTIONS records  
+-- - GROUP_MEMBER entries
+-- - MISSION_CLEARD progress
+-- - USERS_PETS assignments
+-- - USERS_ITEMS inventory
+-- - GROUP_INFO (if user is admin)
+-- 
+-- ============================
 
 CREATE TABLE USERS (
     user_id VARCHAR(64) PRIMARY KEY,
@@ -63,15 +76,15 @@ CREATE TABLE GROUP_INFO (
     group_name VARCHAR(20) NOT NULL,
     max_person INT NOT NULL,
     back_image VARCHAR(255) NOT NULL,
-    FOREIGN KEY (admin_id) REFERENCES USERS(user_id)
+    FOREIGN KEY (admin_id) REFERENCES USERS(user_id) ON DELETE CASCADE
 );
 
 CREATE TABLE GROUP_MEMBER (
     group_id VARCHAR(255) NOT NULL,
     user_id VARCHAR(255) NOT NULL,
     PRIMARY KEY (group_id, user_id),
-    FOREIGN KEY (group_id) REFERENCES GROUP_INFO(group_id),
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id)
+    FOREIGN KEY (group_id) REFERENCES GROUP_INFO(group_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE
 );
 
 CREATE TABLE EXERCISE (
@@ -79,7 +92,7 @@ CREATE TABLE EXERCISE (
     day TIMESTAMP NOT NULL,
     exercise_quantity INT NOT NULL,
     PRIMARY KEY (user_id, day),
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id)
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE
 );
 
 CREATE TABLE CONTRIBUTIONS (
@@ -87,7 +100,7 @@ CREATE TABLE CONTRIBUTIONS (
     day TIMESTAMP NOT NULL,
     count VARCHAR(255) NOT NULL,
     PRIMARY KEY (user_id, day),
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id)
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE
 );
 
 CREATE TABLE MISSION (
@@ -108,8 +121,8 @@ CREATE TABLE MISSION_CLEARD (
     reward_content INT NOT NULL,
     mission_type VARCHAR(255) NOT NULL,
     PRIMARY KEY (user_id, mission_id),
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id),
-    FOREIGN KEY (mission_id) REFERENCES MISSION(mission_id)
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (mission_id) REFERENCES MISSION(mission_id) ON DELETE CASCADE
 );
 
 CREATE TABLE USERS_PETS (
@@ -121,8 +134,8 @@ CREATE TABLE USERS_PETS (
     pet_size INT NOT NULL,
     pet_states INT NOT NULL,
     PRIMARY KEY (user_id, pet_id),
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id),
-    FOREIGN KEY (pet_id) REFERENCES PETS(pet_id)
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (pet_id) REFERENCES PETS(pet_id) ON DELETE CASCADE
 );
 
 CREATE TABLE USERS_ITEMS (
@@ -132,8 +145,8 @@ CREATE TABLE USERS_ITEMS (
     category VARCHAR(255) NOT NULL,
     usage_state BOOLEAN,
     PRIMARY KEY (user_id, item_id),
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id),
-    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id)
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE
 );
 -- ============================
 -- 📦 3. INSERT SAMPLE DATA FOR TOKEN REFRESH TESTING
