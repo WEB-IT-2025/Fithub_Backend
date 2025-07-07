@@ -50,8 +50,9 @@ export const githubOAuthService = {
         const params = new URLSearchParams({
             client_id: ENV.GITHUB_CLIENT_ID || '',
             redirect_uri: ENV.GITHUB_CALLBACK_URL,
-            scope: 'read:user user:email repo', // Basic profile + email + repo access for contributions
-            state: tempSessionToken, // Pass temp token as state for security
+            scope: 'read:user user:email repo',
+            state: tempSessionToken,
+            prompt: 'consent', // Force fresh authorization to prevent code reuse
         })
 
         return `https://github.com/login/oauth/authorize?${params.toString()}`
@@ -60,6 +61,12 @@ export const githubOAuthService = {
     // Exchange authorization code for access token
     async exchangeCodeForTokens(code: string): Promise<GitHubTokenResponse> {
         try {
+            console.log('🔍 [GITHUB] Exchanging authorization code:', {
+                codePreview: code.substring(0, 10) + '...',
+                codeLength: code.length,
+                timestamp: new Date().toISOString(),
+            })
+
             const tokenUrl = 'https://github.com/login/oauth/access_token'
 
             const params = {
@@ -75,16 +82,30 @@ export const githubOAuthService = {
                 },
             })
 
+            console.log('🔍 [GITHUB] Token exchange response:', {
+                status: response.status,
+                hasAccessToken: !!response.data.access_token,
+                responseKeys: Object.keys(response.data),
+            })
+
             if (!response.data.access_token) {
+                console.error('❌ [GITHUB] No access token in response:', {
+                    responseData: response.data,
+                    possibleError: response.data.error,
+                    errorDescription: response.data.error_description,
+                })
                 throw new Error('No access token received from GitHub')
             }
 
             return response.data as GitHubTokenResponse
         } catch (error) {
-            console.error('GitHub OAuth token exchange error:', error)
+            console.error('❌ [GITHUB] OAuth token exchange error:', error)
             if (axios.isAxiosError(error)) {
-                console.error('Response data:', error.response?.data)
-                console.error('Response status:', error.response?.status)
+                console.error('❌ [GITHUB] Response details:', {
+                    status: error.response?.status,
+                    data: error.response?.data,
+                    headers: error.response?.headers,
+                })
             }
             throw new Error('Failed to exchange authorization code for GitHub tokens')
         }
@@ -125,6 +146,56 @@ export const githubOAuthService = {
     },
 
     // Get user's contribution data (commits, repos, etc.)
+    // Get user's contributions for today specifically
+    async getUserContributionsToday(accessToken: string, username: string): Promise<number> {
+        try {
+            // Get recent events for the user
+            const response = await axios.get(`https://api.github.com/users/${username}/events`, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    Accept: 'application/vnd.github.v3+json',
+                },
+                params: {
+                    per_page: 100, // Get recent events
+                },
+            })
+
+            // Filter events for today only
+            const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+            const todayEvents = response.data.filter(
+                (event: { created_at: string; type: string; payload?: { commits?: unknown[] } }) => {
+                    const eventDate = new Date(event.created_at).toISOString().split('T')[0]
+                    return (
+                        eventDate === today &&
+                        (event.type === 'PushEvent' ||
+                            event.type === 'CreateEvent' ||
+                            event.type === 'PullRequestEvent' ||
+                            event.type === 'IssuesEvent')
+                    )
+                }
+            )
+
+            // Count commits from PushEvents specifically
+            let todayContributions = 0
+            for (const event of todayEvents) {
+                if (event.type === 'PushEvent' && event.payload && event.payload.commits) {
+                    todayContributions += event.payload.commits.length
+                } else if (
+                    event.type === 'CreateEvent' ||
+                    event.type === 'PullRequestEvent' ||
+                    event.type === 'IssuesEvent'
+                ) {
+                    todayContributions += 1
+                }
+            }
+
+            return todayContributions
+        } catch (error) {
+            console.error('Failed to get user contributions today:', error)
+            return 0 // Return 0 if error, don't throw
+        }
+    },
+
     async getUserContributions(accessToken: string, username: string): Promise<GitHubContributionData> {
         try {
             // Get user's contribution stats from GitHub API

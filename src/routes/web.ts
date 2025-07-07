@@ -1,8 +1,7 @@
 import express from 'express'
 
 import authRoutes from './authRouter'
-import exerciseRouter from './exerciseRouter'
-import missionRoutes from './missionRouter'
+import dataRoutes from './dataRouter'
 import testRoutes from './test'
 import testRouter from './testRouter'
 
@@ -11,8 +10,6 @@ web.use('/mission', missionRoutes)
 web.use('/exercise', exerciseRouter)
 web.use('/auth', authRoutes)
 web.use('/test', testRoutes)
-// 開発環境のみ
-if (process.env.NODE_ENV !== 'production') {
-    web.use('/admin/test', testRouter)
-}
+web.use('/data', dataRoutes)
+
 export default web
