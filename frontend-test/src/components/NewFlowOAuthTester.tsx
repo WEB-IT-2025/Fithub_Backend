@@ -42,7 +42,7 @@ interface AuthResult {
     }
 }
 
-const API_BASE_URL = 'http://localhost:3000/api/auth'
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/auth`
 
 export default function NewFlowOAuthTester({ onAuthSuccess }: { onAuthSuccess?: (result: AuthResult) => void }) {
     const [steps, setSteps] = useState<FlowStep[]>([
@@ -153,6 +153,7 @@ export default function NewFlowOAuthTester({ onAuthSuccess }: { onAuthSuccess?: 
                     // Try to access popup URL (will throw error for cross-origin)
                     const popupUrl = popup.location?.href
                     console.log(`🔍 [TESTER] URL check #${urlCheckCount}: ${popupUrl?.substring(0, 100)}...`)
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 } catch (e) {
                     // Expected for cross-origin URLs
                     if (urlCheckCount % 5 === 0) {
@@ -648,7 +649,7 @@ export default function NewFlowOAuthTester({ onAuthSuccess }: { onAuthSuccess?: 
                 <h3 className='font-semibold text-blue-800 mb-2'>ℹ️ Test Information</h3>
                 <ul className='text-sm text-blue-700 space-y-1'>
                     <li>
-                        • Backend running on: <code>http://localhost:3000</code>
+                        • Backend running on: <code>{process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}</code>
                     </li>
                     <li>
                         • Frontend running on: <code>http://localhost:3001</code>

@@ -49,7 +49,7 @@ export default function HelloPage() {
 
         try {
             setIsLoading(true)
-            const response = await fetch('http://localhost:3000/api/data/user', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/data/user`, {
                 headers: {
                     Authorization: `Bearer ${sessionToken}`,
                     'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ export default function HelloPage() {
         if (!sessionToken) return
 
         try {
-            const response = await fetch('http://localhost:3000/api/data/stats', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/data/stats`, {
                 headers: {
                     Authorization: `Bearer ${sessionToken}`,
                     'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ export default function HelloPage() {
 
         try {
             setIsSyncing(true)
-            const response = await fetch('http://localhost:3000/api/data/sync', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/data/sync`, {
                 method: 'POST',
                 headers: {
                     Authorization: `Bearer ${sessionToken}`,
