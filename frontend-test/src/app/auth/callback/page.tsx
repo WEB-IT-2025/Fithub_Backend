@@ -4,13 +4,22 @@ import { useEffect, useState } from 'react'
 
 import { useSearchParams } from 'next/navigation'
 
+interface User {
+    id: string
+    username: string
+    email: string
+    display_name?: string
+    profile_image?: string
+    [key: string]: string | number | boolean | undefined | null | object
+}
+
 export default function AuthCallbackPage() {
     const searchParams = useSearchParams()
     const [result, setResult] = useState<{
         success: boolean
         message: string
         session_token?: string
-        user_data?: string
+        user?: User // Changed from any to User interface
         oauth_data?: string
         // Google OAuth intermediate result fields
         is_new_user?: boolean
@@ -23,11 +32,15 @@ export default function AuthCallbackPage() {
             email: string
             picture: string
         }
+        // Error cases
+        error_code?: string
+        suggested_action?: string
     } | null>(null)
 
     useEffect(() => {
         // Get URL parameters
         const success = searchParams.get('success') === 'true'
+        const error = searchParams.get('error') === 'true'
         const googleSuccess = searchParams.get('google_success') === 'true'
         const message = searchParams.get('message') ? decodeURIComponent(searchParams.get('message')!) : ''
         const sessionToken = searchParams.get('session_token')
@@ -39,9 +52,14 @@ export default function AuthCallbackPage() {
         const githubOAuthUrl = searchParams.get('github_oauth_url')
         const googleData = searchParams.get('google_data')
 
+        // Error cases
+        const errorCode = searchParams.get('error_code')
+        const suggestedAction = searchParams.get('suggested_action')
+
         // 🔍 DEBUG: Log all parameters
         console.log('🔔 [CALLBACK] Processing callback with parameters:', {
             success,
+            error,
             googleSuccess,
             message,
             sessionToken: sessionToken ? sessionToken.substring(0, 15) + '...' : null,
@@ -50,13 +68,18 @@ export default function AuthCallbackPage() {
             tempSessionToken: tempSessionToken ? tempSessionToken.substring(0, 15) + '...' : null,
             githubOAuthUrl: githubOAuthUrl ? githubOAuthUrl.substring(0, 50) + '...' : null,
             googleData: googleData ? 'present' : null,
+            errorCode,
+            suggestedAction,
+            currentURL: window.location.href,
         })
 
         let result
+        let messageType = 'AUTH_ERROR'
 
         if (googleSuccess && tempSessionToken && githubOAuthUrl) {
             // This is Google OAuth success for new user - need to continue with GitHub
             console.log('🎯 [CALLBACK] Detected Google OAuth success for new user')
+            messageType = 'GOOGLE_OAUTH_SUCCESS'
             result = {
                 success: true,
                 message,
@@ -67,28 +90,84 @@ export default function AuthCallbackPage() {
                 google_data: googleData ? JSON.parse(decodeURIComponent(googleData)) : undefined,
             }
         } else if (success && sessionToken && userData && oauthData) {
-            // This is final result (existing user login or new user account creation)
+            // This is final result (login or registration complete)
+            console.log('🎯 [CALLBACK] Detected successful auth completion')
+
+            console.log('🔍 [CALLBACK] Raw data before parsing:', {
+                userData: userData ? userData.substring(0, 100) + '...' : null,
+                oauthData: oauthData ? oauthData.substring(0, 100) + '...' : null,
+            })
+
+            let parsedUserData, parsedOAuthData
+            try {
+                parsedUserData = JSON.parse(decodeURIComponent(userData))
+                parsedOAuthData = JSON.parse(decodeURIComponent(oauthData))
+
+                console.log('🔍 [CALLBACK] Parsed data:', {
+                    parsedUserData,
+                    parsedOAuthData,
+                })
+            } catch (parseError) {
+                console.error('❌ [CALLBACK] Failed to parse user/oauth data:', parseError)
+                console.error('❌ [CALLBACK] Raw userData:', userData)
+                console.error('❌ [CALLBACK] Raw oauthData:', oauthData)
+                return
+            }
+
+            // Determine if this was Google or GitHub login/registration
+            const isNewUser = message.includes('アカウント作成') || message.includes('ようこそ')
+            const isGoogleAuth = message.includes('Google')
+            const isGitHubAuth = message.includes('GitHub') || message.includes('GitHubアカウント')
+
+            if (isNewUser) {
+                messageType = 'GITHUB_OAUTH_SUCCESS' // Registration completion after GitHub
+            } else if (isGoogleAuth) {
+                messageType = 'GOOGLE_LOGIN_SUCCESS'
+            } else if (isGitHubAuth) {
+                messageType = 'GITHUB_LOGIN_SUCCESS'
+            } else {
+                messageType = 'AUTH_SUCCESS' // Generic success
+            }
+
+            console.log('🔍 [CALLBACK] Message type detection:', {
+                message,
+                isNewUser,
+                isGoogleAuth,
+                isGitHubAuth,
+                finalMessageType: messageType,
+            })
+
             result = {
                 success,
                 message,
                 session_token: sessionToken,
-                user_data: userData,
-                oauth_data: oauthData,
+                user: parsedUserData, // Change from user_data to user
+                oauth_data: parsedOAuthData,
             }
-        } else if (success) {
-            // Success but missing some data - might be an error case
-            result = {
-                success,
-                message,
-                session_token: sessionToken || undefined,
-                user_data: userData || undefined,
-                oauth_data: oauthData || undefined,
-            }
-        } else {
+        } else if (error || !success) {
             // Error case
+            console.log('🎯 [CALLBACK] Detected auth error')
+            messageType = 'AUTH_ERROR'
+
+            // Determine specific error type
+            if (message.includes('Google')) {
+                messageType = 'GOOGLE_OAUTH_ERROR'
+            } else if (message.includes('GitHub')) {
+                messageType = 'GITHUB_OAUTH_ERROR'
+            }
+
             result = {
                 success: false,
-                message: message || 'Authentication failed',
+                message,
+                error_code: errorCode || undefined,
+                suggested_action: suggestedAction || undefined,
+            }
+        } else {
+            // Unknown case
+            console.log('🎯 [CALLBACK] Unknown callback state')
+            result = {
+                success: false,
+                message: message || 'Unknown authentication result',
             }
         }
 
@@ -96,34 +175,66 @@ export default function AuthCallbackPage() {
 
         // Post message to parent window (popup opener)
         if (window.opener) {
-            console.log('🔔 [CALLBACK] Posting message to parent window:', {
-                hasOpener: !!window.opener,
-                googleSuccess,
-                success,
-                messageType:
-                    googleSuccess ? 'GOOGLE_OAUTH_SUCCESS'
-                    : success ? 'AUTH_SUCCESS'
-                    : 'AUTH_ERROR',
+            console.log('📤 [CALLBACK] Sending message to parent:', {
+                messageType,
+                result,
             })
 
-            if (googleSuccess) {
-                // Google OAuth intermediate result
-                console.log('📤 [CALLBACK] Sending GOOGLE_OAUTH_SUCCESS message:', result)
+            if (messageType === 'GOOGLE_OAUTH_SUCCESS') {
+                // Google OAuth intermediate result - pass data for GitHub redirect
                 window.opener.postMessage(
                     {
                         type: 'GOOGLE_OAUTH_SUCCESS',
-                        data: result,
+                        temp_token: result.temp_session_token,
+                        github_oauth_url: result.github_oauth_url,
+                        google_data: result.google_data,
+                    },
+                    '*'
+                )
+            } else if (messageType === 'GITHUB_OAUTH_SUCCESS') {
+                // Registration complete
+                window.opener.postMessage(
+                    {
+                        type: 'GITHUB_OAUTH_SUCCESS',
+                        result: result,
+                    },
+                    '*'
+                )
+            } else if (messageType === 'GOOGLE_LOGIN_SUCCESS') {
+                // Google login complete
+                window.opener.postMessage(
+                    {
+                        type: 'GOOGLE_LOGIN_SUCCESS',
+                        result: result,
+                    },
+                    '*'
+                )
+            } else if (messageType === 'GITHUB_LOGIN_SUCCESS') {
+                // GitHub login complete
+                window.opener.postMessage(
+                    {
+                        type: 'GITHUB_LOGIN_SUCCESS',
+                        result: result,
+                    },
+                    '*'
+                )
+            } else if (messageType.includes('ERROR')) {
+                // Error cases
+                window.opener.postMessage(
+                    {
+                        type: messageType,
+                        error: result.message,
+                        error_code: result.error_code,
+                        suggested_action: result.suggested_action,
                     },
                     '*'
                 )
             } else {
-                // Final auth result
-                console.log('📤 [CALLBACK] Sending AUTH result message:', result)
+                // Fallback
                 window.opener.postMessage(
                     {
-                        type: success ? 'AUTH_SUCCESS' : 'AUTH_ERROR',
-                        data: result,
-                        error: success ? null : message,
+                        type: 'AUTH_ERROR',
+                        error: result.message || 'Unknown error',
                     },
                     '*'
                 )
@@ -133,7 +244,7 @@ export default function AuthCallbackPage() {
             setTimeout(() => {
                 console.log('🔒 [CALLBACK] Auto-closing popup window')
                 window.close()
-            }, 1000)
+            }, 1500) // Increased from 1000ms to 1500ms
         } else {
             console.error('❌ [CALLBACK] No window.opener found - cannot send message to parent')
         }
@@ -155,36 +266,51 @@ export default function AuthCallbackPage() {
             <div className='max-w-md w-full bg-white rounded-lg shadow-md p-6'>
                 <div className='text-center'>
                     {result.success ?
-                        <>
-                            <div className='text-6xl mb-4'>🎉</div>
-                            <h1 className='text-2xl font-bold text-green-600 mb-2'>Authentication Successful!</h1>
-                            <p className='text-gray-600 mb-4'>{result.message}</p>
-                            <div className='text-sm text-gray-500'>
-                                <p>This window will close automatically...</p>
-                                <p>If not, you can close it manually.</p>
+                        <div>
+                            <div className='mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100'>
+                                <svg
+                                    className='h-6 w-6 text-green-600'
+                                    fill='none'
+                                    stroke='currentColor'
+                                    viewBox='0 0 24 24'
+                                >
+                                    <path
+                                        strokeLinecap='round'
+                                        strokeLinejoin='round'
+                                        strokeWidth='2'
+                                        d='M5 13l4 4L19 7'
+                                    />
+                                </svg>
                             </div>
-                        </>
-                    :   <>
-                            <div className='text-6xl mb-4'>❌</div>
-                            <h1 className='text-2xl font-bold text-red-600 mb-2'>Authentication Failed</h1>
-                            <p className='text-gray-600 mb-4'>{result.message}</p>
-                            <button
-                                onClick={() => window.close()}
-                                className='px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700'
-                            >
-                                Close Window
-                            </button>
-                        </>
+                            <h3 className='mt-4 text-lg font-medium text-gray-900'>Authentication Successful!</h3>
+                            <p className='mt-2 text-sm text-gray-600'>{result.message}</p>
+                            {result.is_new_user && (
+                                <p className='mt-2 text-xs text-blue-600'>Redirecting to GitHub for account setup...</p>
+                            )}
+                        </div>
+                    :   <div>
+                            <div className='mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100'>
+                                <svg
+                                    className='h-6 w-6 text-red-600'
+                                    fill='none'
+                                    stroke='currentColor'
+                                    viewBox='0 0 24 24'
+                                >
+                                    <path
+                                        strokeLinecap='round'
+                                        strokeLinejoin='round'
+                                        strokeWidth='2'
+                                        d='M6 18L18 6M6 6l12 12'
+                                    />
+                                </svg>
+                            </div>
+                            <h3 className='mt-4 text-lg font-medium text-gray-900'>Authentication Failed</h3>
+                            <p className='mt-2 text-sm text-gray-600'>{result.message}</p>
+                        </div>
                     }
-                </div>
 
-                {/* Debug Information */}
-                <details className='mt-6'>
-                    <summary className='cursor-pointer text-sm text-gray-500'>Debug Information</summary>
-                    <pre className='mt-2 p-2 bg-gray-100 rounded text-xs overflow-x-auto'>
-                        {JSON.stringify(result, null, 2)}
-                    </pre>
-                </details>
+                    <p className='mt-4 text-xs text-gray-500'>This window will close automatically...</p>
+                </div>
             </div>
         </div>
     )

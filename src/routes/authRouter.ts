@@ -5,20 +5,22 @@ import {
     githubOAuthCallback,
     googleOAuthCallback,
     initiateGoogleOAuth,
+    loginWithGitHub,
+    loginWithGoogle,
     refreshAllTokens,
-    verifyFirebase,
 } from '~/controllers/authController'
-import { handleValidationErrors, validateFirebaseVerification } from '~/middlewares/validation'
+import { handleValidationErrors, validateOAuthCallback, validateOAuthInitiation } from '~/middlewares/validation'
 
 const router = express.Router()
 
-// Google OAuth Flow
-router.get('/google', initiateGoogleOAuth)
-router.get('/google/callback', googleOAuthCallback)
-router.get('/github/callback', githubOAuthCallback)
+// Registration OAuth Flow
+router.get('/google', validateOAuthInitiation, handleValidationErrors, initiateGoogleOAuth)
+router.get('/google/callback', validateOAuthCallback, handleValidationErrors, googleOAuthCallback)
+router.get('/github/callback', validateOAuthCallback, handleValidationErrors, githubOAuthCallback)
 
-// Legacy Firebase endpoint
-router.post('/verify-firebase', validateFirebaseVerification, handleValidationErrors, verifyFirebase)
+// Login OAuth Flow
+router.get('/login/google', validateOAuthInitiation, handleValidationErrors, loginWithGoogle)
+router.get('/login/github', validateOAuthInitiation, handleValidationErrors, loginWithGitHub)
 
 // Admin endpoints
 router.get('/admin/token-report', getTokenReport)

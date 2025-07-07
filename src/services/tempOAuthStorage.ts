@@ -4,7 +4,7 @@
 import { GoogleOAuthData } from '~/models/userModel'
 
 interface TempOAuthData {
-    firebase_uid: string
+    temp_id: string
     google_oauth: GoogleOAuthData
     google_user_info: {
         google_id: string
@@ -34,7 +34,7 @@ setInterval(() => {
 export const tempOAuthStorage = {
     // Store Google OAuth data temporarily
     storeGoogleOAuth(
-        firebaseUid: string,
+        tempId: string,
         googleOAuth: GoogleOAuthData,
         googleUserInfo: {
             google_id: string
@@ -43,8 +43,8 @@ export const tempOAuthStorage = {
             picture: string
         }
     ): void {
-        tempStorage.set(firebaseUid, {
-            firebase_uid: firebaseUid,
+        tempStorage.set(tempId, {
+            temp_id: tempId,
             google_oauth: googleOAuth,
             google_user_info: googleUserInfo,
             created_at: Date.now(),
@@ -52,26 +52,26 @@ export const tempOAuthStorage = {
     },
 
     // Retrieve and remove Google OAuth data
-    getAndRemoveGoogleOAuth(firebaseUid: string): TempOAuthData | null {
-        const data = tempStorage.get(firebaseUid)
+    getAndRemoveGoogleOAuth(tempId: string): TempOAuthData | null {
+        const data = tempStorage.get(tempId)
         if (!data) {
             return null
         }
 
         // Check if expired
         if (Date.now() - data.created_at > EXPIRY_TIME) {
-            tempStorage.delete(firebaseUid)
+            tempStorage.delete(tempId)
             return null
         }
 
         // Remove from storage (one-time use)
-        tempStorage.delete(firebaseUid)
+        tempStorage.delete(tempId)
         return data
     },
 
     // Check if data exists (for debugging)
-    hasData(firebaseUid: string): boolean {
-        return tempStorage.has(firebaseUid)
+    hasData(tempId: string): boolean {
+        return tempStorage.has(tempId)
     },
 
     // Get storage size (for monitoring)

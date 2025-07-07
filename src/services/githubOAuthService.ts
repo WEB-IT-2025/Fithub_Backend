@@ -50,8 +50,9 @@ export const githubOAuthService = {
         const params = new URLSearchParams({
             client_id: ENV.GITHUB_CLIENT_ID || '',
             redirect_uri: ENV.GITHUB_CALLBACK_URL,
-            scope: 'read:user user:email repo', // Basic profile + email + repo access for contributions
-            state: tempSessionToken, // Pass temp token as state for security
+            scope: 'read:user user:email repo',
+            state: tempSessionToken,
+            prompt: 'consent', // Force fresh authorization to prevent code reuse
         })
 
         return `https://github.com/login/oauth/authorize?${params.toString()}`
@@ -60,6 +61,12 @@ export const githubOAuthService = {
     // Exchange authorization code for access token
     async exchangeCodeForTokens(code: string): Promise<GitHubTokenResponse> {
         try {
+            console.log('🔍 [GITHUB] Exchanging authorization code:', {
+                codePreview: code.substring(0, 10) + '...',
+                codeLength: code.length,
+                timestamp: new Date().toISOString(),
+            })
+
             const tokenUrl = 'https://github.com/login/oauth/access_token'
 
             const params = {
@@ -75,16 +82,30 @@ export const githubOAuthService = {
                 },
             })
 
+            console.log('🔍 [GITHUB] Token exchange response:', {
+                status: response.status,
+                hasAccessToken: !!response.data.access_token,
+                responseKeys: Object.keys(response.data),
+            })
+
             if (!response.data.access_token) {
+                console.error('❌ [GITHUB] No access token in response:', {
+                    responseData: response.data,
+                    possibleError: response.data.error,
+                    errorDescription: response.data.error_description,
+                })
                 throw new Error('No access token received from GitHub')
             }
 
             return response.data as GitHubTokenResponse
         } catch (error) {
-            console.error('GitHub OAuth token exchange error:', error)
+            console.error('❌ [GITHUB] OAuth token exchange error:', error)
             if (axios.isAxiosError(error)) {
-                console.error('Response data:', error.response?.data)
-                console.error('Response status:', error.response?.status)
+                console.error('❌ [GITHUB] Response details:', {
+                    status: error.response?.status,
+                    data: error.response?.data,
+                    headers: error.response?.headers,
+                })
             }
             throw new Error('Failed to exchange authorization code for GitHub tokens')
         }
