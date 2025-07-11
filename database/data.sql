@@ -76,6 +76,7 @@ CREATE TABLE GROUP_INFO (
     group_name VARCHAR(20) NOT NULL,
     max_person INT NOT NULL,
     back_image VARCHAR(255) NOT NULL,
+    group_public BOOLEAN NOT NULL, 
     FOREIGN KEY (admin_id) REFERENCES USERS(user_id) ON DELETE CASCADE
 );
 
