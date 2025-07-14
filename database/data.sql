@@ -17,19 +17,6 @@ DROP TABLE IF EXISTS USERS;
 -- ============================
 -- 🧱 2. CREATE TABLES (PK → FK順)
 -- ============================
--- 
--- 🔄 ON DELETE CASCADE:
--- All foreign keys referencing USERS have ON DELETE CASCADE
--- This means when a user is deleted, all related data will be automatically deleted:
--- - EXERCISE records
--- - CONTRIBUTIONS records  
--- - GROUP_MEMBER entries
--- - MISSION_CLEARD progress
--- - USERS_PETS assignments
--- - USERS_ITEMS inventory
--- - GROUP_INFO (if user is admin)
--- 
--- ============================
 
 CREATE TABLE USERS (
     user_id VARCHAR(64) PRIMARY KEY,
@@ -50,7 +37,8 @@ CREATE TABLE USERS (
 CREATE TABLE PETS (
     pet_id VARCHAR(64) PRIMARY KEY,
     pet_name VARCHAR(20) NOT NULL,
-    pet_image_folder VARCHAR(255) NOT NULL
+    pet_image_folder VARCHAR(255) NOT NULL,
+    pet_type VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE ITEMS (
@@ -60,7 +48,9 @@ CREATE TABLE ITEMS (
     sold_count INT NOT NULL,
     item_image_folder VARCHAR(255) NOT NULL,
     item_create_day TIMESTAMP NOT NULL,
-    item_delete_day TIMESTAMP NOT NULL
+    item_delete_day TIMESTAMP NOT NULL,
+    item_details VARCHAR(16) NOT NULL,
+    item_category VARCHAR(50) NOT NULL
 );
 
 CREATE TABLE THRESHOLD (
@@ -76,7 +66,7 @@ CREATE TABLE GROUP_INFO (
     group_name VARCHAR(20) NOT NULL,
     max_person INT NOT NULL,
     back_image VARCHAR(255) NOT NULL,
-    group_public BOOLEAN NOT NULL, 
+    group_public BOOLEAN NOT NULL,
     FOREIGN KEY (admin_id) REFERENCES USERS(user_id) ON DELETE CASCADE
 );
 
