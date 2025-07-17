@@ -1,84 +1,114 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/AuthContext'
 
-interface MissionStatus {
-    mission_id: string
-    mission_goal: number
-    current_status: number
-    clear_status: boolean
-    clear_time: string | null
-}
-
-export default function MissionPage() {
-    const { user, sessionToken, isAuthenticated } = useAuth()
+export default function CreateMissionPage() {
+    const { sessionToken, isAuthenticated } = useAuth()
     const router = useRouter()
-    const [missions, setMissions] = useState<MissionStatus[]>([])
-    const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        if (!isAuthenticated) {
-            router.push('/')
-            return
+    const [formData, setFormData] = useState({
+        mission_id: '',
+        mission_name: '',
+        mission_goal: 0,
+        reward_content: '',
+        mission_type: '',
+    })
+
+    const [message, setMessage] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value })
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setLoading(true)
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mission/admin/mission_create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${sessionToken}`,
+            },
+            body: JSON.stringify(formData),
+        })
+
+        const result = await res.json()
+        if (res.ok) {
+            setMessage('✅ ミッション作成成功！')
+            router.push('/list') // 作成後ミッション一覧に戻る
+        } else {
+            setMessage(`❌ エラー: ${result.error || result.message}`)
         }
 
-        const fetchMissions = async () => {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/missions/status?user_id=${user?.user_id}`, {
-                headers: {
-                    Authorization: `Bearer ${sessionToken}`,
-                },
-            })
+        setLoading(false)
+    }
 
-            const data = await res.json()
-            setMissions(Array.isArray(data) ? data : [])
-            setLoading(false)
-        }
-
-        fetchMissions()
-    }, [isAuthenticated, user, sessionToken, router])
+    if (!isAuthenticated) {
+        return <p>認証が必要です</p>
+    }
 
     return (
-        <div className='min-h-screen bg-gradient-to-br from-pink-50 to-purple-100 py-8 px-4'>
-            <div className='max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-md'>
-                <h1 className='text-2xl font-bold mb-4 text-purple-800'>🎯 あなたのミッション</h1>
-                {loading ?
-                    <p>読み込み中...</p>
-                : missions.length === 0 ?
-                    <p>ミッションがありません。</p>
-                :   <ul className='space-y-4'>
-                        {missions.map((mission) => (
-                            <li
-                                key={mission.mission_id}
-                                className={`border rounded-md p-4 ${
-                                    mission.clear_status ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'
-                                }`}
-                            >
-                                <div className='flex justify-between items-center'>
-                                    <span className='font-semibold'>{mission.mission_id}</span>
-                                    <span
-                                        className={`text-sm font-bold ${
-                                            mission.clear_status ? 'text-green-600' : 'text-gray-500'
-                                        }`}
-                                    >
-                                        {mission.clear_status ? '✅ 達成' : '⏳ 未達成'}
-                                    </span>
-                                </div>
-                                <div className='text-sm mt-2 text-gray-600'>
-                                    目標: {mission.mission_goal} / 現在: {mission.current_status}
-                                </div>
-                                {mission.clear_time && (
-                                    <div className='text-xs text-gray-400'>
-                                        達成日: {new Date(mission.clear_time).toLocaleString()}
-                                    </div>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                }
+        <div className='min-h-screen flex justify-center items-center bg-gray-100'>
+            <div className='bg-white p-8 rounded-lg shadow-md w-full max-w-md'>
+                <h1 className='text-2xl font-bold mb-4 text-purple-700'>📝 ミッション作成フォーム</h1>
+                <form
+                    onSubmit={handleSubmit}
+                    className='space-y-4'
+                >
+                    <input
+                        type='text'
+                        name='mission_id'
+                        placeholder='mission_id'
+                        required
+                        className='input'
+                        onChange={handleChange}
+                    />
+                    <input
+                        type='text'
+                        name='mission_name'
+                        placeholder='ミッション名'
+                        required
+                        className='input'
+                        onChange={handleChange}
+                    />
+                    <input
+                        type='number'
+                        name='mission_goal'
+                        placeholder='目標値（数値）'
+                        required
+                        className='input'
+                        onChange={handleChange}
+                    />
+                    <input
+                        type='text'
+                        name='reward_content'
+                        placeholder='報酬内容'
+                        className='input'
+                        onChange={handleChange}
+                    />
+                    <input
+                        type='text'
+                        name='mission_type'
+                        placeholder='種類（steps/github など）'
+                        required
+                        className='input'
+                        onChange={handleChange}
+                    />
+                    <button
+                        type='submit'
+                        disabled={loading}
+                        className='w-full py-2 bg-purple-600 text-white rounded hover:bg-purple-700'
+                    >
+                        {loading ? '作成中...' : '作成'}
+                    </button>
+                </form>
+                {message && <p className='mt-4 text-center text-sm text-gray-600'>{message}</p>}
             </div>
         </div>
     )
