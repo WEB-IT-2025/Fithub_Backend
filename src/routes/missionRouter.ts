@@ -1,4 +1,6 @@
 import express from 'express'
+// src/routes/missionRoutes.ts
+import { evaluateMissionsHandler } from '~/controllers/evaluationController'
 import {
     clearUserMission,
     deleteMission,
@@ -36,5 +38,8 @@ router.post('/clear', requireCompleteUser, validateClearMissionBody, handleValid
 
 // ミッションクリア取り消し（管理者）
 router.put('/admin/revert', requireAdmin, validateRevertMissionBody, handleValidationErrors, revertUserMission)
+
+// ミッション評価（管理者トリガー）
+router.post('/admin/evaluate/:user_id', requireAdmin, evaluateMissionsHandler)
 
 export default router

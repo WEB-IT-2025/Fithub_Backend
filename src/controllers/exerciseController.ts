@@ -4,7 +4,8 @@ import { EXERCISE_MESSAGES } from '~/constants/messages'
 import { asyncHandler } from '~/middlewares/asyncHandler'
 import { exerciseModel } from '~/models/exerciseModel'
 import { thresholdModel } from '~/models/thresholdModel'
-import { userModel } from '~/models/userModel'
+
+// import { userModel } from '~/models/userModel'
 
 /**
  * 歩数データを記録し、ポイントを自動加算する（TIMESTAMP対応版）
@@ -28,10 +29,10 @@ export const recordExercise = asyncHandler(async (req: Request, res: Response) =
     const stepPointRate = await thresholdModel.getStepPointRate()
     const pointToAdd = Math.floor(steps / stepPointRate)
 
-    // 3. ポイント加算
-    if (pointToAdd > 0) {
-        await userModel.addPoint(user_id, pointToAdd)
-    }
+    // // 3. ポイント加算
+    // if (pointToAdd > 0) {
+    //     await userModel.addPoint(user_id, pointToAdd)
+    // }
 
     // 4. 結果レスポンス
     return res.status(200).json({

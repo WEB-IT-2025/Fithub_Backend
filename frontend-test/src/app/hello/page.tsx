@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { useAuth } from '@/contexts/AuthContext'
@@ -149,6 +150,9 @@ export default function HelloPage() {
             fetchUserStats()
         }
     }, [isAuthenticated, sessionToken, fetchUserData, fetchUserStats])
+    useEffect(() => {
+        console.log('🐛 sessionToken =', sessionToken)
+    }, [sessionToken])
 
     if (!isAuthenticated || !user) {
         return (
@@ -400,6 +404,15 @@ export default function HelloPage() {
                     <p className='text-sm text-gray-600 mt-3'>
                         This token is valid for 7 days and is used for API authentication.
                     </p>
+                </div>
+
+                <div className='bg-white rounded-lg shadow-lg p-6 mb-8'>
+                    <h2 className='text-xl font-semibold mb-4 text-gray-800'>🧩 その他の機能</h2>
+                    <Link href='/missions'>
+                        <button className='px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors'>
+                            🎯 ミッションを確認する
+                        </button>
+                    </Link>
                 </div>
 
                 {/* Success Message */}

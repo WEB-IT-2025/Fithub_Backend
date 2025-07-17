@@ -119,4 +119,20 @@ export const missionModel = {
             conn.release()
         }
     },
+    async getUnclearedMissions(userId: string): Promise<MissionRow[]> {
+        const [rows] = await db.query<MissionRow[]>(
+            `SELECT m.* FROM MISSION m
+         JOIN MISSION_CLEARD mc ON m.mission_id = mc.mission_id
+         WHERE mc.user_id = ? AND mc.clear_status = false`,
+            [userId]
+        )
+        return rows
+    },
+    async updateCurrentStatus(userId: string, missionId: string, status: number): Promise<void> {
+        await db.query('UPDATE MISSION_CLEARD SET current_status = ? WHERE user_id = ? AND mission_id = ?', [
+            status,
+            userId,
+            missionId,
+        ])
+    },
 }
