@@ -12,6 +12,7 @@ interface CompletePayload extends JwtPayload {
 
 export const requireCompleteUser: RequestHandler = (req, res, next) => {
     const authHeader = req.headers.authorization
+    console.log('Authorization header:', req.headers.authorization)
     if (!authHeader?.startsWith('Bearer ')) {
         res.status(401).json({ success: false, message: AUTH_MESSAGES.TOKEN_NOT_FOUND })
         return

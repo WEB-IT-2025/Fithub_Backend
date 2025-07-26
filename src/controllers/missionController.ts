@@ -11,26 +11,26 @@ export const getAllMissions = asyncHandler(async (req: Request, res: Response) =
 })
 
 export const registerMission = asyncHandler(async (req: Request, res: Response) => {
-    const { mission_id, mission_name, mission_goal, reward_content, mission_type } = req.body
+    const { mission_id, mission_name, mission_content, reward_content, mission_type } = req.body
 
-    if (!mission_id || !mission_name || !mission_goal || reward_content == null || !mission_type) {
+    if (!mission_id || !mission_name || !mission_content || reward_content == null || !mission_type) {
         return res.status(400).json({ error: 'すべてのミッション情報を入力してください' })
     }
 
-    const mission: MissionInsertDTO = { mission_id, mission_name, mission_goal, reward_content, mission_type }
+    const mission: MissionInsertDTO = { mission_id, mission_name, mission_content, reward_content, mission_type }
 
     await missionModel.insertMission(mission)
     res.status(201).json({ message: 'ミッション情報を登録しました。' })
 })
 
 export const deleteMission = asyncHandler(async (req: Request, res: Response) => {
-    const { mission_id } = req.params
+    const { mission_id } = req.query
 
     if (!mission_id) {
         return res.status(400).json({ error: 'mission_idが必要です' })
     }
 
-    const success = await missionModel.deleteMission(mission_id)
+    const success = await missionModel.deleteMission(String(mission_id))
     if (success) {
         res.status(200).json({ message: 'ミッションを削除しました。' })
     } else {
@@ -95,4 +95,76 @@ export const clearMissionAndReward = asyncHandler(async (req: Request, res: Resp
     } else {
         res.status(400).json({ error: 'ミッションクリアに失敗しました。' })
     }
+})
+/**
+ * ミッションクリア状況確認のみ（進捗確認）
+ * GET /api/missions/check-status?user_id=xxx&mission_id=xxx
+ */
+export const getMissionClearStatus = asyncHandler(async (req: Request, res: Response) => {
+    const { user_id, mission_id } = req.query
+
+    if (!user_id || !mission_id) {
+        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
+    }
+
+    const clearStatus = await missionModel.checkMissionClearStatus(String(user_id), String(mission_id))
+
+    if (!clearStatus) {
+        return res.status(404).json({ error: 'ミッションまたはユーザーが見つかりません' })
+    }
+
+    res.status(200).json(clearStatus)
+})
+
+/**
+ * ミッション進捗チェック&自動クリア
+ * POST /api/missions/check-progress
+ * Body: { user_id: string, mission_id: string }
+ */
+export const checkMissionProgress = asyncHandler(async (req: Request, res: Response) => {
+    const { user_id, mission_id } = req.body
+
+    if (!user_id || !mission_id) {
+        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
+    }
+
+    const result = await missionModel.updateMissionProgress(user_id, mission_id)
+
+    if (!result.updated) {
+        return res.status(404).json({ error: 'ミッションまたはユーザーが見つかりません' })
+    }
+
+    if (result.cleared) {
+        res.status(200).json({
+            message: 'ミッションをクリアしました！報酬を獲得しました。',
+            data: result.progressData,
+        })
+    } else {
+        res.status(200).json({
+            message: '進捗を更新しました。',
+            data: result.progressData,
+        })
+    }
+})
+
+/**
+ * 全ミッション一括進捗チェック
+ * POST /api/missions/check-all-progress
+ * Body: { user_id: string }
+ */
+export const checkAllMissionProgress = asyncHandler(async (req: Request, res: Response) => {
+    const { user_id } = req.body
+
+    if (!user_id) {
+        return res.status(400).json({ error: 'user_idが必要です' })
+    }
+
+    const result = await missionModel.checkAndUpdateAllMissions(user_id)
+
+    res.status(200).json({
+        message: `${result.checkedCount}個のミッションをチェックしました。`,
+        checkedCount: result.checkedCount,
+        newlyCleared: result.newlyCleared,
+        newlyClearedCount: result.newlyCleared.length,
+    })
 })

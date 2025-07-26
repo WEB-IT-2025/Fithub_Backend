@@ -1,10 +1,10 @@
+// testRouter.ts
 import express, { Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 
 const router = express.Router()
-const JWT_SECRET = process.env.JWT_SECRET!
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_dev_key'
 
-// 管理者・通常ユーザー トークン発行API（開発用）
 router.post('/issue-token', (req: Request, res: Response): void => {
     const { user_id, user_name, role } = req.body
 
@@ -13,13 +13,9 @@ router.post('/issue-token', (req: Request, res: Response): void => {
         return
     }
 
-    const payload = {
-        user_id,
-        user_name,
-        role, // 'admin' または 'user'
-    }
-
+    const payload = { user_id, user_name, role }
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+
     res.status(200).json({ token })
 })
 

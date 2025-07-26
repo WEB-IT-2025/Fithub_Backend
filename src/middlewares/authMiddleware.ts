@@ -31,7 +31,7 @@ export const verifyToken = (req: AuthenticatedRequest, res: Response, next: Next
             throw new Error()
         }
 
-        req.user = decoded as { user_id: string; user_name: string }
+        req.user = decoded as { user_id: string; user_name: string; google_user_id: string }
         next()
     } catch (err) {
         console.error('❌ [verifyToken] JWT verification failed:', err)
