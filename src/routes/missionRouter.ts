@@ -7,6 +7,7 @@ import {
     deleteMission,
     getAllMissions,
     getMissionClearStatus,
+    getUserMissionDetails,
     getUserMissionStatus,
     registerMission,
     revertUserMission,
@@ -24,34 +25,38 @@ import {
 
 const router = express.Router()
 
-// ミッション一覧
+// ミッション一覧(テスト済み)
 router.get('/list', getAllMissions)
 
 // ミッション状況取得
 router.get('/status', requireCompleteUser, handleValidationErrors, getUserMissionStatus)
 
-// ミッションクリア状況確認のみ（進捗確認）
+// ミッション詳細一覧(daily, weekly判別)(テスト済み)
+router.get('/details', requireCompleteUser, handleValidationErrors, getUserMissionDetails)
+// ミッションクリア状況確認のみ（進捗確認）(テスト済み)
+
+// http://localhost:3000/api/mission/check-status?user_id=xxx&mission_id=mx
 router.get('/check-status', requireCompleteUser, handleValidationErrors, getMissionClearStatus)
 
-// ミッション進捗チェック&自動クリア
+// ミッション進捗チェック&自動クリア(テスト済み)
 router.post('/check-progress', requireCompleteUser, handleValidationErrors, checkMissionProgress)
 
-// 全ミッション一括進捗チェック
+// 全ミッション一括進捗チェック(テスト済み)
 router.post('/check-all-progress', requireCompleteUser, handleValidationErrors, checkAllMissionProgress)
 
-// ミッションクリア(成功)
+// ミッションクリア(テスト済み)
 router.post('/clear', requireCompleteUser, validateClearMissionBody, handleValidationErrors, clearUserMission)
 
 // それ以外の管理系は認証付き
 router.use(authenticateJWT)
 
-// ミッション登録（管理者）
+// ミッション登録（運営）(テスト済み)
 router.post('/admin/mission_create', requireAdmin, validateMissionRegistration, handleValidationErrors, registerMission)
 
-// ミッション削除（管理者）
+// ミッション削除（運営）(テスト済み)
 router.delete('/admin/mission_delete', requireAdmin, validateMissionIdQuery, handleValidationErrors, deleteMission)
 
-// ミッションクリア取り消し（管理者）
+// ミッションクリア取り消し（運営）(テスト済み)
 router.put('/admin/revert', requireAdmin, validateRevertMissionBody, handleValidationErrors, revertUserMission)
 
 export default router

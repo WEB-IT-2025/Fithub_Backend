@@ -50,8 +50,8 @@ export const getUserMissionStatus = asyncHandler(async (req: Request, res: Respo
 })
 
 export const clearUserMission = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, mission_id } = req.body
-
+    const user_id = (req.user as any)?.user_id
+    const { mission_id } = req.body
     if (!user_id || !mission_id) {
         return res.status(400).json({ error: 'user_idとmission_idは必須です' })
     }
@@ -167,4 +167,20 @@ export const checkAllMissionProgress = asyncHandler(async (req: Request, res: Re
         newlyCleared: result.newlyCleared,
         newlyClearedCount: result.newlyCleared.length,
     })
+})
+
+// 追加が必要
+export const getUserMissionDetails = asyncHandler(async (req: Request, res: Response) => {
+    const { user_id, type } = req.query // クエリから取得
+
+    if (!user_id) {
+        return res.status(400).json({ error: 'user_idが必要です' })
+    }
+
+    const missions = await missionModel.getUserMissionDetails(String(user_id))
+
+    // タブ切り替え対応
+    const filteredMissions = type ? missions.filter((m) => m.mission_type === type) : missions
+
+    res.status(200).json(filteredMissions)
 })
