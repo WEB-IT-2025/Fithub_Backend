@@ -218,19 +218,17 @@ export const missionModel = {
     },
 
     async markMissionCleared(user_id: string, mission_id: string): Promise<boolean> {
-        // ミッション情報取得
-        const mission = await this.getMissionById(mission_id)
-        if (!mission) return false
-
-        // mission_contentから目標値を抽出
-        const mission_goal = this.extractGoalFromContent(mission.mission_content)
-
-        // mission_cleardテーブルに保存
-        await db.query(
-            'INSERT INTO mission_cleard (user_id, mission_id, mission_goal, cleared_at) VALUES (?, ?, ?, NOW())',
-            [user_id, mission_id, mission_goal]
-        )
-        return true
+        try {
+            // MISSION_CLEARDテーブルの該当レコードを更新
+            const [result] = await db.query<OkPacket>(
+                'UPDATE MISSION_CLEARD SET clear_status = true, clear_time = NOW() WHERE user_id = ? AND mission_id = ?',
+                [user_id, mission_id]
+            )
+            return result.affectedRows > 0
+        } catch (error) {
+            console.error('Error marking mission as cleared:', error)
+            return false
+        }
     },
 
     async revertMissionCleared(userId: string, missionId: string): Promise<boolean> {

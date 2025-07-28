@@ -50,18 +50,20 @@ export const getUserMissionStatus = asyncHandler(async (req: Request, res: Respo
 })
 
 export const clearUserMission = asyncHandler(async (req: Request, res: Response) => {
-    const user_id = (req.user as any)?.user_id
+    const user_id = (req.user as any)?.user_id // 認証されたユーザーから取得
     const { mission_id } = req.body
+
     if (!user_id || !mission_id) {
         return res.status(400).json({ error: 'user_idとmission_idは必須です' })
     }
 
-    const cleared = await missionModel.markMissionCleared(String(user_id), String(mission_id))
+    // markMissionClearedAndRewardを使用（重要：markMissionClearedではない）
+    const cleared = await missionModel.markMissionClearedAndReward(String(user_id), String(mission_id))
 
     if (cleared) {
-        res.status(200).json({ message: 'ミッションをクリアしました。' })
+        res.status(200).json({ message: 'ミッションをクリアし、ポイントを付与しました。' })
     } else {
-        res.status(404).json({ error: 'ミッションが見つかりません' })
+        res.status(404).json({ error: 'ミッションが見つかりません、または既にクリア済みです。' })
     }
 })
 

@@ -3,91 +3,129 @@ import { OkPacket, RowDataPacket } from 'mysql2'
 import db from '~/config/database'
 
 export interface GroupRow extends RowDataPacket {
-    group_id: number
-    admin_id: string
+    group_id: string
+    admin_id: string // グループリーダーのID
     group_name: string
     max_person: number
     back_image: string
-    group_public: boolean
+}
+
+export interface GroupMember extends RowDataPacket {
+    user_id: string
+    user_name: string
+    user_icon: string
 }
 
 export const groupModel = {
+    // グループ作成（作成者が自動的にグループリーダーになる）
     async createGroup(
-        admin_id: string,
+        group_id: string,
+        admin_id: string, // 作成者がグループリーダーになる
         group_name: string,
         max_person: number,
-        back_image: string,
-        group_public: boolean
-    ): Promise<number> {
-        const [result] = await db.query<OkPacket>(
-            'INSERT INTO GROUP_INFO (admin_id, group_name, max_person, back_image, group_public) VALUES (?, ?, ?, ?, ?)',
-            [admin_id, group_name, max_person, back_image, group_public]
+        back_image: string
+    ): Promise<string> {
+        await db.query(
+            'INSERT INTO GROUP_INFO (group_id, admin_id, group_name, max_person, back_image) VALUES (?, ?, ?, ?, ?)',
+            [group_id, admin_id, group_name, max_person, back_image]
         )
-        return result.insertId
+        return group_id
     },
 
-    async addGroupMember(group_id: number, user_id: string, role: string = 'MEMBER'): Promise<void> {
-        await db.query('INSERT IGNORE INTO GROUP_MEMBER (group_id, user_id, role) VALUES (?, ?, ?)', [
-            group_id,
-            user_id,
-            role,
-        ])
+    // グループメンバー追加
+    async addGroupMember(group_id: string, user_id: string): Promise<void> {
+        await db.query('INSERT IGNORE INTO GROUP_MEMBER (group_id, user_id) VALUES (?, ?)', [group_id, user_id])
     },
 
-    async getGroupById(group_id: number): Promise<GroupRow | null> {
-        const [rows] = await db.query<GroupRow[]>('SELECT * FROM GROUP_INFO WHERE group_id=?', [group_id])
+    // グループIDでグループ取得
+    async getGroupById(group_id: string): Promise<GroupRow | null> {
+        const [rows] = await db.query<GroupRow[]>('SELECT * FROM GROUP_INFO WHERE group_id = ?', [group_id])
         return rows.length > 0 ? rows[0] : null
     },
 
-    async updateGroup(group_id: number, group_name: string, max_person: number, back_image: string): Promise<boolean> {
+    // グループ情報更新（グループリーダーのみ）
+    async updateGroup(group_id: string, group_name: string, max_person: number, back_image: string): Promise<boolean> {
         const [result] = await db.query<OkPacket>(
-            'UPDATE GROUP_INFO SET group_name=?, max_person=?, back_image=? WHERE group_id=?',
+            'UPDATE GROUP_INFO SET group_name = ?, max_person = ?, back_image = ? WHERE group_id = ?',
             [group_name, max_person, back_image, group_id]
         )
         return result.affectedRows > 0
     },
 
-    async deleteGroup(group_id: number): Promise<boolean> {
-        const [result] = await db.query<OkPacket>('DELETE FROM GROUP_INFO WHERE group_id=?', [group_id])
+    // グループ削除（グループリーダーのみ）
+    async deleteGroup(group_id: string): Promise<boolean> {
+        const [result] = await db.query<OkPacket>('DELETE FROM GROUP_INFO WHERE group_id = ?', [group_id])
         return result.affectedRows > 0
     },
 
+    // ユーザーが所属するグループ一覧取得
     async getGroupsByUserId(user_id: string): Promise<any[]> {
         const [rows] = await db.query(
             `SELECT 
-         gi.group_id,
-         gi.group_name,
-         gi.max_person,
-         gi.back_image,
-         (SELECT COUNT(*) FROM GROUP_MEMBER gm2 WHERE gm2.group_id = gi.group_id) AS current_count
-       FROM GROUP_MEMBER gm
-       JOIN GROUP_INFO gi ON gm.group_id = gi.group_id
-       WHERE gm.user_id = ?`,
+                gi.group_id,
+                gi.group_name,
+                gi.max_person,
+                gi.back_image,
+                gi.admin_id,
+                (SELECT COUNT(*) FROM GROUP_MEMBER gm2 WHERE gm2.group_id = gi.group_id) AS current_count
+            FROM GROUP_MEMBER gm
+            JOIN GROUP_INFO gi ON gm.group_id = gi.group_id
+            WHERE gm.user_id = ?`,
             [user_id]
         )
         return rows as any[]
     },
 
-    async getGroupMembers(group_id: number): Promise<any[]> {
-        const [rows] = await db.query(
-            `SELECT u.user_id, u.user_name, u.user_icon, gm.role
-       FROM GROUP_MEMBER gm 
-       JOIN USERS u ON gm.user_id = u.user_id 
-       WHERE gm.group_id = ?`,
+    // グループメンバー一覧取得
+    async getGroupMembers(group_id: string): Promise<GroupMember[]> {
+        const [rows] = await db.query<GroupMember[]>(
+            `SELECT u.user_id, u.user_name, u.user_icon
+            FROM GROUP_MEMBER gm 
+            JOIN USERS u ON gm.user_id = u.user_id 
+            WHERE gm.group_id = ?`,
             [group_id]
         )
-        return rows as any[]
+        return rows
     },
 
-    async removeGroupMember(group_id: number, user_id: string): Promise<void> {
+    // グループメンバー削除（グループリーダーのみ）
+    async removeGroupMember(group_id: string, user_id: string): Promise<void> {
         await db.query('DELETE FROM GROUP_MEMBER WHERE group_id = ? AND user_id = ?', [group_id, user_id])
     },
 
-    async isGroupAdmin(group_id: number, user_id: string): Promise<boolean> {
+    // グループリーダー確認（重要な権限チェック）
+    async isGroupLeader(group_id: string, user_id: string): Promise<boolean> {
         const [rows] = await db.query<RowDataPacket[]>(
-            'SELECT * FROM GROUP_MEMBER WHERE group_id = ? AND user_id = ? AND role = "ADMIN"',
+            'SELECT admin_id FROM GROUP_INFO WHERE group_id = ? AND admin_id = ?',
             [group_id, user_id]
         )
         return rows.length > 0
+    },
+
+    // ユーザーがグループメンバーかどうか確認
+    async isGroupMember(group_id: string, user_id: string): Promise<boolean> {
+        const [rows] = await db.query<RowDataPacket[]>(
+            'SELECT * FROM GROUP_MEMBER WHERE group_id = ? AND user_id = ?',
+            [group_id, user_id]
+        )
+        return rows.length > 0
+    },
+
+    // グループの現在のメンバー数取得
+    async getGroupMemberCount(group_id: string): Promise<number> {
+        const [rows] = await db.query<RowDataPacket[]>(
+            'SELECT COUNT(*) as count FROM GROUP_MEMBER WHERE group_id = ?',
+            [group_id]
+        )
+        return rows[0].count
+    },
+
+    // グループリーダー変更（システム管理者または現在のリーダーのみ）
+    async changeGroupLeader(group_id: string, new_admin_id: string): Promise<boolean> {
+        const [result] = await db.query<OkPacket>('UPDATE GROUP_INFO SET admin_id = ? WHERE group_id = ?', [
+            new_admin_id,
+            group_id,
+        ])
+        return result.affectedRows > 0
     },
 }

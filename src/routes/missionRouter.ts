@@ -45,7 +45,7 @@ router.post('/check-progress', requireCompleteUser, handleValidationErrors, chec
 router.post('/check-all-progress', requireCompleteUser, handleValidationErrors, checkAllMissionProgress)
 
 // ミッションクリア(テスト済み)
-router.post('/clear', requireCompleteUser, validateClearMissionBody, handleValidationErrors, clearUserMission)
+router.post('/clear', requireCompleteUser, handleValidationErrors, clearUserMission)
 
 // それ以外の管理系は認証付き
 router.use(authenticateJWT)

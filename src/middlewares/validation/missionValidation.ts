@@ -16,8 +16,12 @@ export const validateMissionIdParam = [param('mission_id').notEmpty().withMessag
 export const validateMissionIdQuery = [query('mission_id').notEmpty().withMessage('mission_idは必須です')]
 
 export const validateClearMissionBody = [
-    body('user_id').notEmpty().withMessage('user_idは必須です'),
-    body('mission_id').notEmpty().withMessage('mission_idは必須です'),
+    body('mission_id')
+        .notEmpty()
+        .withMessage('mission_idは必須です')
+        .isString()
+        .withMessage('mission_idは文字列である必要があります'),
+    // user_id関連のバリデーションを全て削除
 ]
 export const validateRevertMissionBody = [
     body('user_id').notEmpty().withMessage('user_idは必須です'),
