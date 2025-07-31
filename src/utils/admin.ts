@@ -1,4 +1,4 @@
-// utils/isAdmin.ts など
+// utils/Admin.ts
 import { ENV } from '~/config/loadEnv'
 
 export function isAdmin(user: { user_id: string }): boolean {
