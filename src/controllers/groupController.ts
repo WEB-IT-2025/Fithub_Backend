@@ -7,12 +7,20 @@ import { UserPayload } from '~/types/UserPayload'
 // グループ作成（作成者が自動的にグループリーダーになる）
 export const createGroup = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user as UserPayload
-    const { group_id, group_name, max_person, back_image } = req.body
+    const { group_name, max_person, back_image, group_public } = req.body
 
-    // user_idはJWTから取得（より安全）
     const user_id = user.user_id
+    const group_id = await groupModel.getNextGroupId()
 
-    const createdGroupId = await groupModel.createGroup(group_id, user_id, group_name, max_person, back_image)
+    const createdGroupId = await groupModel.createGroup(
+        group_id,
+        user_id,
+        group_name,
+        max_person,
+        back_image,
+        group_public ?? true // ← チェックなしなら true = 公開
+    )
+
     await groupModel.addGroupMember(createdGroupId, user_id)
 
     res.status(201).json({

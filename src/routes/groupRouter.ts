@@ -10,6 +10,7 @@ import {
     removeGroupMember,
     updateGroup,
 } from '~/controllers/groupController'
+import { authenticateJWT } from '~/middlewares/authenticateJWT'
 import { requireAdmin } from '~/middlewares/requireAdmin'
 import { requireGroupLeader } from '~/middlewares/requireGroupLeader'
 import {
@@ -23,10 +24,11 @@ import {
 const router = express.Router()
 
 // グループ基本操作（グループリーダー限定）
-router.post('/create', validateGroupCreation, handleValidationErrors, createGroup)
+router.post('/create', authenticateJWT, validateGroupCreation, handleValidationErrors, createGroup)
 
 router.put(
     '/update',
+    authenticateJWT,
     validateGroupUpdate,
     handleValidationErrors,
     requireGroupLeader, // グループリーダー権限チェック
@@ -35,6 +37,7 @@ router.put(
 
 router.delete(
     '/delete',
+    authenticateJWT,
     validateGroupDelete,
     handleValidationErrors,
     requireGroupLeader, // グループリーダー権限チェック

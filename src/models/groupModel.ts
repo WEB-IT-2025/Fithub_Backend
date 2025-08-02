@@ -20,16 +20,31 @@ export const groupModel = {
     // グループ作成（作成者が自動的にグループリーダーになる）
     async createGroup(
         group_id: string,
-        admin_id: string, // 作成者がグループリーダーになる
+        admin_id: string,
         group_name: string,
         max_person: number,
-        back_image: string
+        back_image: string,
+        group_public: boolean
     ): Promise<string> {
         await db.query(
-            'INSERT INTO GROUP_INFO (group_id, admin_id, group_name, max_person, back_image) VALUES (?, ?, ?, ?, ?)',
-            [group_id, admin_id, group_name, max_person, back_image]
+            'INSERT INTO GROUP_INFO (group_id, admin_id, group_name, max_person, back_image, group_public) VALUES (?, ?, ?, ?, ?, ?)',
+            [group_id, admin_id, group_name, max_person, back_image, group_public]
         )
         return group_id
+    },
+
+    // groupModel.ts に追加
+    async getNextGroupId(): Promise<string> {
+        const [rows] = await db.query<RowDataPacket[]>(
+            "SELECT group_id FROM GROUP_INFO WHERE group_id LIKE 'g%' ORDER BY group_id DESC LIMIT 1"
+        )
+
+        if (rows.length === 0) return 'g0000001'
+
+        const lastId = rows[0].group_id // 例: 'g0000123'
+        const num = parseInt(lastId.slice(1)) + 1 // '0000123' → 124
+        const newId = `g${String(num).padStart(7, '0')}` // → 'g0000124'
+        return newId
     },
 
     // グループメンバー追加
