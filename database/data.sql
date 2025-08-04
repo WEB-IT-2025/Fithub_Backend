@@ -137,7 +137,8 @@ CREATE TABLE MISSION (
     mission_name VARCHAR(50) NOT NULL,
     mission_content VARCHAR(255) NOT NULL,
     reward_content VARCHAR(255) NOT NULL,
-    mission_type VARCHAR(255) NOT NULL
+    mission_type VARCHAR(255) NOT NULL,
+    mission_category VARCHAR(50) NOT NULL
 );
 
 CREATE TABLE MISSION_CLEARD (
