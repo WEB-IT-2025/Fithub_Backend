@@ -2,8 +2,7 @@ import { Request, Response } from 'express'
 import { asyncHandler } from '~/middlewares/asyncHandler'
 import { missionModel } from '~/models/missionModel'
 import { MissionInsertDTO } from '~/models/missionModel'
-
-// MissionRow を export する必要あり
+import { UserPayload } from '~/types/UserPayload'
 
 export const getAllMissions = asyncHandler(async (req: Request, res: Response) => {
     const missions = await missionModel.getAllMissions()
@@ -64,7 +63,7 @@ export const getUserMissionStatus = asyncHandler(async (req: Request, res: Respo
 })
 
 export const clearUserMission = asyncHandler(async (req: Request, res: Response) => {
-    const user_id = (req.user as any)?.user_id // 認証されたユーザーから取得
+    const user_id = (req.user as UserPayload)?.user_id // 認証されたユーザーから取得
     const { mission_id } = req.body
 
     if (!user_id || !mission_id) {
@@ -192,21 +191,45 @@ export const getUserMissionDetails = asyncHandler(async (req: Request, res: Resp
         return res.status(400).json({ error: 'user_idが必要です' })
     }
 
+    console.log('=== getUserMissionDetails Debug ===')
+    console.log('user_id:', user_id)
+    console.log('category:', category)
+    console.log('cleared:', cleared)
+
     let missions = await missionModel.getUserMissionDetails(String(user_id))
+
+    console.log('取得されたミッション数:', missions.length)
+    console.log(
+        '取得されたミッション:',
+        missions.map((m) => ({
+            mission_id: m.mission_id,
+            clear_status: m.clear_status,
+            mission_category: m.mission_category,
+        }))
+    )
 
     if (category) {
         missions = missions.filter((m) => m.mission_category.toLowerCase() === String(category).toLowerCase())
+        console.log('カテゴリフィルタ後:', missions.length)
     }
 
-    if (cleared === 'false') {
-        missions = missions.filter((m) => m.clear_status == false)
+    // clearedパラメータの処理
+    if (cleared === 'true') {
+        missions = missions.filter((m) => Boolean(m.clear_status))
+        console.log('cleared=true フィルタ後:', missions.length)
+    } else if (cleared === 'false' || cleared === undefined) {
+        // clearedパラメータがない場合は未クリアのみを返す（デフォルト動作）
+        missions = missions.filter((m) => !m.clear_status)
+        console.log('cleared=false フィルタ後:', missions.length)
     }
+    // cleared='all'の場合は全てを返す（フィルタリングしない）
 
+    console.log('最終結果:', missions.length)
     res.status(200).json(missions)
 })
 
 export const syncMissions = asyncHandler(async (req: Request, res: Response) => {
-    const userId = (req.user as any)?.user_id
+    const userId = (req.user as UserPayload)?.user_id
     if (!userId) {
         return res.status(401).json({ error: '認証が必要です' })
     }
@@ -234,7 +257,7 @@ export const syncMissions = asyncHandler(async (req: Request, res: Response) => 
     })
 })
 export const claimAllRewards = asyncHandler(async (req: Request, res: Response) => {
-    const user_id = (req.user as any)?.user_id
+    const user_id = (req.user as UserPayload)?.user_id
     if (!user_id) return res.status(401).json({ error: '認証が必要です' })
 
     const claimableMissions = await missionModel.getUnclaimedRewards(user_id)

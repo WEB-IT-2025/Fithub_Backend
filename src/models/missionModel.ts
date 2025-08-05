@@ -227,6 +227,9 @@ export const missionModel = {
      * ユーザーのミッション詳細情報を取得（MISSIONテーブルと結合）
      */
     async getUserMissionDetails(userId: string): Promise<UserMissionDetail[]> {
+        console.log('=== getUserMissionDetails Model Debug ===')
+        console.log('userId:', userId)
+
         const [rows] = await db.query<UserMissionDetail[]>(
             `SELECT
                 m.mission_id,
@@ -245,11 +248,35 @@ export const missionModel = {
                     ELSE 0
                 END AS progress_percentage
                 FROM MISSION m
-                JOIN MISSION_CLEARD mc ON m.mission_id = mc.mission_id
-                WHERE mc.user_id = ?
+                JOIN (
+                    SELECT 
+                        user_id, 
+                        mission_id, 
+                        mission_goal, 
+                        current_status, 
+                        clear_status, 
+                        clear_time, 
+                        reward_content, 
+                        mission_type, 
+                        mission_category,
+                        ROW_NUMBER() OVER (PARTITION BY mission_id ORDER BY clear_time DESC, clear_status DESC) as rn
+                    FROM MISSION_CLEARD 
+                    WHERE user_id = ?
+                ) mc ON m.mission_id = mc.mission_id AND mc.rn = 1
                 ORDER BY mc.clear_status ASC, m.mission_type, m.mission_id`,
             [userId]
         )
+
+        console.log('DB結果の行数:', rows.length)
+        console.log(
+            'DB結果詳細:',
+            rows.map((r) => ({
+                mission_id: r.mission_id,
+                clear_status: r.clear_status,
+                mission_category: r.mission_category,
+            }))
+        )
+
         return rows
     },
 
