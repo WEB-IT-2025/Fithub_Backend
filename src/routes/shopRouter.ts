@@ -11,18 +11,18 @@ import {
 import { verifyToken } from '~/middlewares/authMiddleware'
 import { validateCreateShopItem, validateItemId, validatePurchaseItem } from '~/middlewares/validation/shopValidation'
 
-const shopRouter = Router()
+const router = Router()
 
 // パブリックエンドポイント
-shopRouter.get('/items', getShopItems) // GET /api/shop/items
-shopRouter.get('/items/:item_id', validateItemId, getShopItemById) // GET /api/shop/items/:item_id
-shopRouter.get('/categories', getPetCategories) // GET /api/shop/categories
+router.get('/items', getShopItems) // GET /api/shop/items
+router.get('/items/:item_id', validateItemId, getShopItemById) // GET /api/shop/items/:item_id
+router.get('/categories', getPetCategories) // GET /api/shop/categories
 
 // 認証が必要なエンドポイント
-shopRouter.put('/purchase', verifyToken as RequestHandler, validatePurchaseItem, purchaseItem) // PUT /api/shop/purchase
+router.put('/purchase', verifyToken as RequestHandler, validatePurchaseItem, purchaseItem) // PUT /api/shop/purchase
 
 // 管理者用エンドポイント（認証が必要）
-shopRouter.post('/admin/items', verifyToken as RequestHandler, validateCreateShopItem, createShopItem) // POST /api/admin/shop/items
-shopRouter.delete('/admin/:item_id', verifyToken as RequestHandler, validateItemId, deleteShopItem) // DELETE /api/admin/shop/:item_id
+router.post('/admin/items', verifyToken as RequestHandler, validateCreateShopItem, createShopItem) // POST /api/admin/shop/items
+router.delete('/admin/:item_id', verifyToken as RequestHandler, validateItemId, deleteShopItem) // DELETE /api/admin/shop/:item_id
 
-export default shopRouter
+export default router

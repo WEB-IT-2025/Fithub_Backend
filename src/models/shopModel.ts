@@ -14,6 +14,7 @@ export interface ShopItem {
     item_category: string
     pet_category?: string
     pet_type?: string
+    is_purchased?: boolean
 }
 
 export interface ShopItemInput {
@@ -41,11 +42,12 @@ interface ShopItemRow extends RowDataPacket {
     item_category: string
     pet_category?: string
     pet_type?: string
+    is_purchased?: boolean
 }
 
 export const shopModel = {
-    // ショップアイテム一覧を取得
-    async getAllItems(category?: string): Promise<ShopItem[]> {
+    // ショップアイテム一覧を取得（購入済み情報付き）
+    async getAllItems(category?: string, userId?: string): Promise<ShopItem[]> {
         let query = `
             SELECT 
                 i.item_id,
@@ -61,13 +63,18 @@ export const shopModel = {
                 CASE 
                     WHEN p.item_id IS NOT NULL THEN 'pet'
                     ELSE 'item'
-                END as pet_category
+                END as pet_category,
+                CASE 
+                    WHEN pur.item_id IS NOT NULL THEN true
+                    ELSE false
+                END as is_purchased
             FROM ITEMS i
             LEFT JOIN PETS p ON i.item_id = p.item_id
+            LEFT JOIN PURCHASES pur ON i.item_id = pur.item_id AND pur.user_id = ?
             WHERE i.item_delete_day > NOW()
         `
 
-        const params: string[] = []
+        const params: string[] = [userId || '']
 
         if (category) {
             query += ` AND p.pet_type = ?`

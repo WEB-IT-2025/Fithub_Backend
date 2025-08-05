@@ -11,12 +11,18 @@ interface UserJwtPayload extends JwtPayload {
     user_name: string
 }
 
-// GET /api/shop/items - ショップアイテム一覧取得
+// GET /api/shop/items - ショップアイテム一覧取得（購入済み情報付き）
 export const getShopItems = asyncHandler(async (req: Request, res: Response) => {
     const { category } = req.query
 
+    // ユーザー認証情報を取得（オプション）
+    let userId: string | undefined
+    if (req.user && typeof req.user !== 'string') {
+        userId = (req.user as UserJwtPayload).user_id
+    }
+
     try {
-        const items = await shopModel.getAllItems(category as string)
+        const items = await shopModel.getAllItems(category as string, userId)
 
         if (items.length === 0) {
             return res.status(400).json({
