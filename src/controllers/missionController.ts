@@ -74,7 +74,10 @@ export const clearUserMission = asyncHandler(async (req: Request, res: Response)
     const cleared = await missionModel.markMissionClearedAndReward(String(user_id), String(mission_id))
 
     if (cleared) {
-        res.status(200).json({ message: 'ミッションをクリアし、ポイントを付与しました。' })
+        res.status(200).json({
+            message: 'ミッションをクリアしました！報酬は翌日以降に受け取ることができます。',
+            note: '報酬の受け取りは、ミッションクリアの翌日から可能です。',
+        })
     } else {
         res.status(404).json({ error: 'ミッションが見つかりません、または既にクリア済みです。' })
     }
@@ -91,7 +94,10 @@ export const revertUserMission = asyncHandler(async (req: Request, res: Response
 
     const reverted = await missionModel.revertMissionCleared(user_id, mission_id)
     if (reverted) {
-        res.status(200).json({ message: 'ミッションクリアを取り消しました。' })
+        res.status(200).json({
+            message: 'ミッションクリアを取り消しました。',
+            note: '既に受け取った報酬がある場合は、ポイントから差し引かれました。',
+        })
     } else {
         res.status(404).json({ error: 'ミッションが見つかりません。' })
     }
@@ -260,11 +266,41 @@ export const claimAllRewards = asyncHandler(async (req: Request, res: Response) 
     const user_id = (req.user as UserPayload)?.user_id
     if (!user_id) return res.status(401).json({ error: '認証が必要です' })
 
+    // ユーザーの報酬状況を詳しく取得
+    const rewardStatus = await missionModel.getRewardStatusSummary(user_id)
     const claimableMissions = await missionModel.getUnclaimedRewards(user_id)
+
+    // メッセージを状況に応じて生成
+    let message = ''
+    const details: string[] = []
+
     if (claimableMissions.length === 0) {
-        return res.status(200).json({ message: '受け取れる報酬はありません。', claimed: 0, totalPoints: 0 })
+        if (rewardStatus.alreadyClaimed > 0) {
+            message = '受け取れる報酬はありません。'
+            details.push(`${rewardStatus.alreadyClaimed}個の報酬は既に受け取り済みです。`)
+        }
+
+        if (rewardStatus.waitingForCooldown > 0) {
+            details.push(`${rewardStatus.waitingForCooldown}個の報酬は24時間のクールダウン中です。`)
+        }
+
+        if (rewardStatus.totalCleared === 0) {
+            message = 'まだクリア済みのミッションがありません。'
+            details.push('ミッションをクリアして報酬を獲得しましょう！')
+        } else if (message === '') {
+            message = '受け取れる報酬はありません。'
+        }
+
+        return res.status(200).json({
+            message,
+            details,
+            claimed: 0,
+            totalPoints: 0,
+            rewardStatus,
+        })
     }
 
+    // 報酬受け取り処理
     let totalPoints = 0
     for (const m of claimableMissions) {
         totalPoints += Number(m.reward_content)
@@ -273,9 +309,61 @@ export const claimAllRewards = asyncHandler(async (req: Request, res: Response) 
 
     await missionModel.addUserPoints(user_id, totalPoints)
 
+    // 成功メッセージ
+    const successDetails: string[] = [`${claimableMissions.length}個の報酬を受け取りました！`]
+
+    if (rewardStatus.alreadyClaimed > 0) {
+        successDetails.push(`これまでに${rewardStatus.alreadyClaimed}個の報酬を受け取り済みです。`)
+    }
+
+    if (rewardStatus.waitingForCooldown > 0) {
+        successDetails.push(`あと${rewardStatus.waitingForCooldown}個の報酬が24時間後に受け取り可能になります。`)
+    }
+
     res.status(200).json({
-        message: `${claimableMissions.length}個の報酬を受け取りました`,
+        message: `${totalPoints}ポイントを獲得しました！`,
+        details: successDetails,
         claimed: claimableMissions.length,
         totalPoints,
+        rewardStatus: {
+            ...rewardStatus,
+            alreadyClaimed: rewardStatus.alreadyClaimed + claimableMissions.length,
+            claimable: 0,
+        },
+    })
+})
+
+export const getRewardStatus = asyncHandler(async (req: Request, res: Response) => {
+    const user_id = (req.user as UserPayload)?.user_id
+    if (!user_id) return res.status(401).json({ error: '認証が必要です' })
+
+    const rewardStatus = await missionModel.getRewardStatusSummary(user_id)
+
+    let message = ''
+    const details: string[] = []
+
+    if (rewardStatus.totalCleared === 0) {
+        message = 'まだクリア済みのミッションがありません。'
+        details.push('ミッションをクリアして報酬を獲得しましょう！')
+    } else {
+        message = `クリア済みミッション: ${rewardStatus.totalCleared}個`
+
+        if (rewardStatus.claimable > 0) {
+            details.push(`🎁 ${rewardStatus.claimable}個の報酬が受け取り可能です！`)
+        }
+
+        if (rewardStatus.alreadyClaimed > 0) {
+            details.push(`✅ ${rewardStatus.alreadyClaimed}個の報酬は既に受け取り済みです。`)
+        }
+
+        if (rewardStatus.waitingForCooldown > 0) {
+            details.push(`⏰ ${rewardStatus.waitingForCooldown}個の報酬は24時間のクールダウン中です。`)
+        }
+    }
+
+    res.status(200).json({
+        message,
+        details,
+        rewardStatus,
     })
 })

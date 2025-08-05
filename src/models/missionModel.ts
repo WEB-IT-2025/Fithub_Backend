@@ -16,7 +16,7 @@ interface MissionCleardRow extends RowDataPacket {
     mission_goal: number
     current_status: number
     clear_status: boolean
-    clear_time: Date | null
+    clear_time: Date | null // クリア時刻（NULLなら未クリア）
     reward_content: number
     mission_type: 'step' | 'contribution'
     mission_category: 'daily' | 'weekly'
@@ -239,11 +239,12 @@ export const missionModel = {
                 m.mission_type  AS mission_type,
                 m.mission_category AS mission_category,
                 mc.mission_goal,
-                mc.current_status,
+                mc.current_status AS current_status,
                 mc.clear_status,
                 mc.clear_time,
                 mc.reward_content,
                 CASE
+                    WHEN mc.clear_status = true THEN 100.0
                     WHEN mc.mission_goal > 0 THEN ROUND(mc.current_status / mc.mission_goal * 100, 1)
                     ELSE 0
                 END AS progress_percentage
@@ -343,11 +344,49 @@ export const missionModel = {
     },
 
     async revertMissionCleared(userId: string, missionId: string): Promise<boolean> {
-        const [result] = await db.query<OkPacket>(
-            'UPDATE MISSION_CLEARD SET clear_status = false, clear_time = NULL WHERE user_id = ? AND mission_id = ?',
-            [userId, missionId]
-        )
-        return result.affectedRows > 0
+        const conn = await db.getConnection()
+
+        try {
+            await conn.beginTransaction()
+
+            // 1. 現在の状態を確認
+            const [currentRows] = await conn.query<RowDataPacket[]>(
+                `SELECT clear_status, clear_time, reward_content 
+                 FROM MISSION_CLEARD 
+                 WHERE user_id = ? AND mission_id = ?`,
+                [userId, missionId]
+            )
+
+            if (currentRows.length === 0) {
+                await conn.rollback()
+                return false
+            }
+
+            const { clear_status, clear_time, reward_content } = currentRows[0]
+
+            // 2. 報酬が既に受け取られている場合、ポイントを差し引く
+            if (clear_status && clear_time !== null) {
+                const rewardAmount = Number(reward_content) || 0
+                await conn.query(`UPDATE USERS SET user_point = GREATEST(0, user_point - ?) WHERE user_id = ?`, [
+                    rewardAmount,
+                    userId,
+                ])
+            }
+
+            // 3. ミッションクリア状態をリセット
+            const [result] = await conn.query<OkPacket>(
+                'UPDATE MISSION_CLEARD SET clear_status = false, clear_time = NULL, current_status = 0 WHERE user_id = ? AND mission_id = ?',
+                [userId, missionId]
+            )
+
+            await conn.commit()
+            return result.affectedRows > 0
+        } catch (err) {
+            await conn.rollback()
+            throw err
+        } finally {
+            conn.release()
+        }
     },
 
     async getMissionById(missionId: string): Promise<MissionRow | null> {
@@ -356,7 +395,7 @@ export const missionModel = {
     },
 
     /**
-     * ミッションクリア状態を更新し、報酬ポイントを加算する
+     * ミッションクリア状態を更新（報酬は即座に付与しない）
      * @param userId ユーザーID
      * @param missionId ミッションID
      * @returns 成功した場合はtrue、失敗した場合はfalse
@@ -367,29 +406,62 @@ export const missionModel = {
         try {
             await conn.beginTransaction()
 
-            // 1. ミッションクリア状態更新
-            const [updateResult] = await conn.query<OkPacket>(
-                `UPDATE MISSION_CLEARD SET clear_status = true WHERE user_id = ? AND mission_id = ?`,
+            // 0. 既にクリア済みかチェック
+            const [existingRows] = await conn.query<RowDataPacket[]>(
+                `SELECT clear_status FROM MISSION_CLEARD WHERE user_id = ? AND mission_id = ?`,
                 [userId, missionId]
             )
+
+            if (existingRows.length > 0 && existingRows[0].clear_status) {
+                // 既にクリア済みの場合は何もしない
+                await conn.rollback()
+                return false
+            }
+
+            // 1. 現在の進捗値を取得してからクリア処理
+            const progressData = await this.checkMissionClearStatus(userId, missionId)
+            if (!progressData || !progressData.isClear) {
+                await conn.rollback()
+                return false
+            }
+
+            console.log(`=== クリア処理 Debug ===`)
+            console.log(`userId: ${userId}, missionId: ${missionId}`)
+            console.log(`現在の進捗値: ${progressData.currentValue}`)
+            console.log(`目標値: ${progressData.targetValue}`)
+            console.log(`クリア時刻: ${new Date().toISOString()}`)
+
+            const [updateResult] = await conn.query<OkPacket>(
+                `UPDATE MISSION_CLEARD 
+                 SET clear_status = true, clear_time = NOW(), current_status = ?
+                 WHERE user_id = ? AND mission_id = ? AND clear_status = false`,
+                [progressData.currentValue, userId, missionId]
+            )
+
+            console.log(`更新された行数: ${updateResult.affectedRows}`)
+
             if (updateResult.affectedRows === 0) {
                 await conn.rollback()
                 return false
             }
 
-            // 2. 報酬ポイント取得（MISSION_CLEARDテーブルから）
-            const [rewardRows] = await conn.query<RowDataPacket[]>(
-                `SELECT reward_content FROM MISSION_CLEARD WHERE user_id = ? AND mission_id = ?`,
+            // 注意: 報酬ポイントは即座に付与せず、別途受け取り処理が必要
+            // clear_time = クリア時刻
+            // current_status = 歩数やコントリビューション数などの進捗値
+
+            // デバッグ: 更新後の状態を確認
+            const [verifyRows] = await conn.query<RowDataPacket[]>(
+                `SELECT clear_status, current_status, clear_time FROM MISSION_CLEARD 
+                 WHERE user_id = ? AND mission_id = ?`,
                 [userId, missionId]
             )
-            if (rewardRows.length === 0) {
-                await conn.rollback()
-                return false
+            if (verifyRows.length > 0) {
+                const row = verifyRows[0]
+                console.log(`更新後の状態:`)
+                console.log(`- clear_status: ${row.clear_status}`)
+                console.log(`- current_status: ${row.current_status}`)
+                console.log(`- clear_time: ${row.clear_time}`)
             }
-            const reward = Number(rewardRows[0].reward_content) || 0
-
-            // 3. ユーザーのポイント加算
-            await conn.query(`UPDATE USERS SET point = point + ? WHERE user_id = ?`, [reward, userId])
 
             await conn.commit()
             return true
@@ -412,11 +484,12 @@ export const missionModel = {
     },
 
     async updateCurrentStatus(userId: string, missionId: string, status: number): Promise<void> {
-        await db.query('UPDATE MISSION_CLEARD SET current_status = ? WHERE user_id = ? AND mission_id = ?', [
-            status,
-            userId,
-            missionId,
-        ])
+        // クリア済みのミッションの場合でもcurrent_statusを更新する
+        // (current_statusには歩数やコントリビューション数などの進捗値が記録される)
+        await db.query(
+            'UPDATE MISSION_CLEARD SET current_status = ? WHERE user_id = ? AND mission_id = ? AND clear_status = false',
+            [status, userId, missionId]
+        )
     },
 
     /**
@@ -515,29 +588,37 @@ export const missionModel = {
         cleared: boolean
         progressData?: MissionProgressData
     }> {
+        // まず現在のクリア状態をチェック
+        const [existingRows] = await db.query<RowDataPacket[]>(
+            'SELECT clear_status FROM MISSION_CLEARD WHERE user_id = ? AND mission_id = ?',
+            [userId, missionId]
+        )
+
+        if (existingRows.length > 0 && existingRows[0].clear_status) {
+            // 既にクリア済みの場合は進捗更新をスキップ
+            const clearStatus = await this.checkMissionClearStatus(userId, missionId)
+            return {
+                updated: false, // 更新しない
+                cleared: false, // 新規クリアではない
+                progressData: clearStatus || undefined,
+            }
+        }
+
         const clearStatus = await this.checkMissionClearStatus(userId, missionId)
         if (!clearStatus) {
             return { updated: false, cleared: false }
         }
 
-        // current_statusを更新
+        // current_statusを更新（未クリアの場合のみ）
         await this.updateCurrentStatus(userId, missionId, clearStatus.currentValue)
 
         // クリア判定
         if (clearStatus.isClear) {
-            // まだクリアされていない場合のみクリア処理を実行
-            const [existingRows] = await db.query<RowDataPacket[]>(
-                'SELECT clear_status FROM MISSION_CLEARD WHERE user_id = ? AND mission_id = ?',
-                [userId, missionId]
-            )
-
-            if (existingRows.length > 0 && !existingRows[0].clear_status) {
-                const cleared = await this.markMissionClearedAndReward(userId, missionId)
-                return {
-                    updated: true,
-                    cleared,
-                    progressData: clearStatus,
-                }
+            const cleared = await this.markMissionClearedAndReward(userId, missionId)
+            return {
+                updated: true,
+                cleared,
+                progressData: clearStatus,
             }
         }
 
@@ -629,19 +710,74 @@ export const missionModel = {
             conn.release()
         }
     },
-    // 受け取り可能な報酬一覧取得
+    // 受け取り可能な報酬一覧取得（クリア24時間後で、まだ受け取っていないもの）
     async getUnclaimedRewards(user_id: string): Promise<MissionCleardRow[]> {
         const [rows] = await db.query<MissionCleardRow[]>(
-            `SELECT mission_id, reward_content FROM MISSION_CLEARD
-         WHERE user_id = ? AND clear_status = true AND clear_time IS NULL`,
+            `SELECT mission_id, reward_content, current_status
+             FROM MISSION_CLEARD
+             WHERE user_id = ? 
+             AND clear_status = true 
+             AND clear_time IS NOT NULL
+             AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) >= 86400`,
             [user_id]
         )
         return rows
     },
-    // 報酬受け取り済みにする
+
+    // ユーザーの報酬状況を詳しく取得
+    async getRewardStatusSummary(user_id: string): Promise<{
+        alreadyClaimed: number
+        waitingForCooldown: number
+        claimable: number
+        totalCleared: number
+    }> {
+        // 受け取り済み報酬数（報酬受け取り処理で別管理が必要）
+        const [claimedRows] = await db.query<RowDataPacket[]>(
+            `SELECT COUNT(*) as count FROM MISSION_CLEARD 
+             WHERE user_id = ? AND clear_status = true 
+             AND clear_time IS NOT NULL 
+             AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) < 86400`,
+            [user_id]
+        )
+
+        // クールダウン中（クリア済みだが24時間未経過）
+        const [cooldownRows] = await db.query<RowDataPacket[]>(
+            `SELECT COUNT(*) as count FROM MISSION_CLEARD 
+             WHERE user_id = ? AND clear_status = true 
+             AND clear_time IS NOT NULL 
+             AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) < 86400`,
+            [user_id]
+        )
+
+        // 受け取り可能
+        const [claimableRows] = await db.query<RowDataPacket[]>(
+            `SELECT COUNT(*) as count FROM MISSION_CLEARD 
+             WHERE user_id = ? AND clear_status = true 
+             AND clear_time IS NOT NULL 
+             AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) >= 86400`,
+            [user_id]
+        )
+
+        // 総クリア数
+        const [totalRows] = await db.query<RowDataPacket[]>(
+            `SELECT COUNT(*) as count FROM MISSION_CLEARD 
+             WHERE user_id = ? AND clear_status = true`,
+            [user_id]
+        )
+
+        return {
+            alreadyClaimed: 0, // 別途報酬受け取り管理テーブルが必要
+            waitingForCooldown: Number(cooldownRows[0]?.count) || 0,
+            claimable: Number(claimableRows[0]?.count) || 0,
+            totalCleared: Number(totalRows[0]?.count) || 0,
+        }
+    },
+    // 報酬受け取り済みにする（clear_timeを設定して受け取り済みフラグとする）
     async markRewardReceived(user_id: string, mission_id: string): Promise<void> {
         await db.query(
-            `UPDATE MISSION_CLEARD SET clear_time = NOW() WHERE user_id = ? AND mission_id = ? AND clear_time IS NULL`,
+            `UPDATE MISSION_CLEARD 
+             SET clear_time = NOW() 
+             WHERE user_id = ? AND mission_id = ? AND clear_time IS NULL`,
             [user_id, mission_id]
         )
     },
