@@ -164,7 +164,36 @@ Fithubのミッション機能は、ユーザーの運動・GitHub活動など�
   "newlyCleared": ["m1", "m3"],
   "newlyClearedCount": 2
 }
+
+
 ```
+
+## 🎁 一括報酬受け取りAPI
+
+### エンドポイント
+
+`POST /api/mission/claim-all`
+
+### 概要
+
+クリア済みで、まだ報酬を受け取っていない全てのミッションに対して、報酬を一括で受け取ります。
+
+---
+
+### 🔐 認証
+
+- JWTトークンが必要（`Authorization: Bearer <token>`）
+
+---
+
+### 📥 リクエスト
+
+リクエストボディは不要です。
+
+```http
+POST /api/mission/claim-all
+Authorization: Bearer <token>
+
 
 ---
 

@@ -266,6 +266,54 @@ export const missionModel = {
             return false
         }
     },
+    async claimAllClearedMissions(userId: string): Promise<{
+        claimedCount: number
+        totalReward: number
+    }> {
+        const conn = await db.getConnection()
+
+        try {
+            await conn.beginTransaction()
+
+            // 1. 報酬を受け取る対象ミッションを取得
+            const [missions] = await conn.query<RowDataPacket[]>(
+                `SELECT mission_id, reward_content 
+                FROM MISSION_CLEARD 
+                WHERE user_id = ? AND clear_status = true AND clear_time IS NULL`,
+                [userId]
+            )
+
+            if (missions.length === 0) {
+                await conn.rollback()
+                return { claimedCount: 0, totalReward: 0 }
+            }
+
+            // 2. 合計報酬を計算
+            const totalReward = missions.reduce((sum, m) => sum + (Number(m.reward_content) || 0), 0)
+
+            // 3. ユーザーに報酬を加算
+            await conn.query(`UPDATE USERS SET point = point + ? WHERE user_id = ?`, [totalReward, userId])
+
+            // 4. 各ミッションの clear_time を更新（受領済みフラグとして）
+            await conn.query(
+                `UPDATE MISSION_CLEARD 
+       SET clear_time = NOW() 
+       WHERE user_id = ? AND clear_status = true AND clear_time IS NULL`,
+                [userId]
+            )
+
+            await conn.commit()
+            return {
+                claimedCount: missions.length,
+                totalReward,
+            }
+        } catch (err) {
+            await conn.rollback()
+            throw err
+        } finally {
+            conn.release()
+        }
+    },
 
     async revertMissionCleared(userId: string, missionId: string): Promise<boolean> {
         const [result] = await db.query<OkPacket>(
@@ -294,7 +342,7 @@ export const missionModel = {
 
             // 1. ミッションクリア状態更新
             const [updateResult] = await conn.query<OkPacket>(
-                `UPDATE MISSION_CLEARD SET clear_status = true, clear_time = NOW() WHERE user_id = ? AND mission_id = ?`,
+                `UPDATE MISSION_CLEARD SET clear_status = true WHERE user_id = ? AND mission_id = ?`,
                 [userId, missionId]
             )
             if (updateResult.affectedRows === 0) {
@@ -553,5 +601,26 @@ export const missionModel = {
         } finally {
             conn.release()
         }
+    },
+    // 受け取り可能な報酬一覧取得
+    async getUnclaimedRewards(user_id: string): Promise<MissionCleardRow[]> {
+        const [rows] = await db.query<MissionCleardRow[]>(
+            `SELECT mission_id, reward_content FROM MISSION_CLEARD
+         WHERE user_id = ? AND clear_status = true AND clear_time IS NULL`,
+            [user_id]
+        )
+        return rows
+    },
+    // 報酬受け取り済みにする
+    async markRewardReceived(user_id: string, mission_id: string): Promise<void> {
+        await db.query(
+            `UPDATE MISSION_CLEARD SET clear_time = NOW() WHERE user_id = ? AND mission_id = ? AND clear_time IS NULL`,
+            [user_id, mission_id]
+        )
+    },
+
+    // ユーザーのポイント加算
+    async addUserPoints(user_id: string, points: number): Promise<void> {
+        await db.query(`UPDATE USERS SET user_point = user_point + ? WHERE user_id = ?`, [points, user_id])
     },
 }

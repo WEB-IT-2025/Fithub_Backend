@@ -3,6 +3,7 @@ import express from 'express'
 import {
     checkAllMissionProgress,
     checkMissionProgress,
+    claimAllRewards,
     clearUserMission,
     deleteMission,
     getAllMissions,
@@ -48,6 +49,9 @@ router.post('/check-progress', requireCompleteUser, handleValidationErrors, chec
 
 // ミッションクリア(テスト済み)
 router.post('/clear', requireCompleteUser, handleValidationErrors, clearUserMission)
+
+// ミッション報酬一括受け取り
+router.post('/claim-all', requireCompleteUser, claimAllRewards)
 
 router.post('/sync', requireCompleteUser, syncMissions)
 // それ以外の管理系は認証付き

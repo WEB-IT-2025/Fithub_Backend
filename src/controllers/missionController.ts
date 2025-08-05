@@ -233,3 +233,26 @@ export const syncMissions = asyncHandler(async (req: Request, res: Response) => 
         newlyClearedCount: result.newlyCleared.length,
     })
 })
+export const claimAllRewards = asyncHandler(async (req: Request, res: Response) => {
+    const user_id = (req.user as any)?.user_id
+    if (!user_id) return res.status(401).json({ error: '認証が必要です' })
+
+    const claimableMissions = await missionModel.getUnclaimedRewards(user_id)
+    if (claimableMissions.length === 0) {
+        return res.status(200).json({ message: '受け取れる報酬はありません。', claimed: 0, totalPoints: 0 })
+    }
+
+    let totalPoints = 0
+    for (const m of claimableMissions) {
+        totalPoints += Number(m.reward_content)
+        await missionModel.markRewardReceived(user_id, m.mission_id)
+    }
+
+    await missionModel.addUserPoints(user_id, totalPoints)
+
+    res.status(200).json({
+        message: `${claimableMissions.length}個の報酬を受け取りました`,
+        claimed: claimableMissions.length,
+        totalPoints,
+    })
+})
