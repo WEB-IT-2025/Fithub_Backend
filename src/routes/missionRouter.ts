@@ -1,7 +1,6 @@
 import express from 'express'
 // src/routes/missionRoutes.ts
 import {
-    checkAllMissionProgress,
     checkMissionProgress,
     claimAllRewards,
     clearUserMission,
@@ -19,7 +18,6 @@ import { requireAdmin } from '~/middlewares/requireAdmin'
 import { requireCompleteUser } from '~/middlewares/requireCompleteUser'
 import { handleValidationErrors } from '~/middlewares/validation'
 import {
-    validateClearMissionBody,
     validateMissionIdQuery,
     validateMissionRegistration,
     validateRevertMissionBody,
@@ -40,20 +38,21 @@ router.get('/details', requireCompleteUser, handleValidationErrors, getUserMissi
 // http://localhost:3000/api/mission/check-status?user_id=xxx&mission_id=mx
 router.get('/check-status', requireCompleteUser, handleValidationErrors, getMissionClearStatus)
 
-// ミッション進捗チェック&自動クリア(テスト済み)
-router.post('/check-progress', requireCompleteUser, handleValidationErrors, checkMissionProgress)
+// ミッション進捗チェック&自動クリア(テスト済み) - 状態更新なのでPUTを使用
+router.put('/check-progress', requireCompleteUser, handleValidationErrors, checkMissionProgress)
 
 //syncっていうルーターと丸かぶりだからとりまコメントアウト
 // 全ミッション一括進捗チェック(テスト済み)
 // router.post('/check-all-progress', requireCompleteUser, handleValidationErrors, checkAllMissionProgress)
 
-// ミッションクリア(テスト済み)
-router.post('/clear', requireCompleteUser, handleValidationErrors, clearUserMission)
+// ミッションクリア(テスト済み) - 状態更新なのでPUTを使用
+router.put('/clear', requireCompleteUser, handleValidationErrors, clearUserMission)
 
-// ミッション報酬一括受け取り
-router.post('/claim-all', requireCompleteUser, claimAllRewards)
+// ミッション報酬一括受け取り - 状態更新なのでPUTを使用
+router.put('/claim-all', requireCompleteUser, claimAllRewards)
 
-router.post('/sync', requireCompleteUser, syncMissions)
+// ミッション同期処理 - 状態更新なのでPUTを使用
+router.put('/sync', requireCompleteUser, syncMissions)
 // それ以外の管理系は認証付き
 router.use(authenticateJWT)
 
