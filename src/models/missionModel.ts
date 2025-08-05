@@ -16,7 +16,7 @@ interface MissionCleardRow extends RowDataPacket {
     mission_goal: number
     current_status: number
     clear_status: boolean
-    clear_time: Date | null // クリア時刻（NULLなら未クリア）
+    clear_time: Date | null // 報酬受け取り時刻（NULLなら未受取）
     reward_content: number
     mission_type: 'step' | 'contribution'
     mission_category: 'daily' | 'weekly'
@@ -239,7 +239,10 @@ export const missionModel = {
                 m.mission_type  AS mission_type,
                 m.mission_category AS mission_category,
                 mc.mission_goal,
-                mc.current_status AS current_status,
+                CASE
+                    WHEN mc.clear_status = true THEN mc.mission_goal
+                    ELSE mc.current_status
+                END AS current_status,
                 mc.clear_status,
                 mc.clear_time,
                 mc.reward_content,
@@ -303,11 +306,14 @@ export const missionModel = {
         try {
             await conn.beginTransaction()
 
-            // 1. 報酬を受け取る対象ミッションを取得
+            // 1. 報酬を受け取る対象ミッションを取得（24時間経過後）
             const [missions] = await conn.query<RowDataPacket[]>(
                 `SELECT mission_id, reward_content 
                 FROM MISSION_CLEARD 
-                WHERE user_id = ? AND clear_status = true AND clear_time IS NULL`,
+                WHERE user_id = ? 
+                AND clear_status = true 
+                AND clear_time IS NOT NULL
+                AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) >= 86400`,
                 [userId]
             )
 
@@ -322,13 +328,18 @@ export const missionModel = {
             // 3. ユーザーに報酬を加算
             await conn.query(`UPDATE USERS SET point = point + ? WHERE user_id = ?`, [totalReward, userId])
 
-            // 4. 各ミッションの clear_time を更新（受領済みフラグとして）
-            await conn.query(
-                `UPDATE MISSION_CLEARD 
-       SET clear_time = NOW() 
-       WHERE user_id = ? AND clear_status = true AND clear_time IS NULL`,
-                [userId]
-            )
+            // 4. 報酬受け取り済みを記録するため、clear_timeを遠い未来の日付に更新
+            // (この方法は一時的な解決策です。本来は専用カラムが必要)
+            const missionIds = missions.map((m) => m.mission_id)
+            if (missionIds.length > 0) {
+                const placeholders = missionIds.map(() => '?').join(',')
+                await conn.query(
+                    `UPDATE MISSION_CLEARD 
+                     SET clear_time = '2099-12-31 23:59:59'
+                     WHERE user_id = ? AND mission_id IN (${placeholders})`,
+                    [userId, ...missionIds]
+                )
+            }
 
             await conn.commit()
             return {
@@ -445,9 +456,9 @@ export const missionModel = {
                 return false
             }
 
-            // 注意: 報酬ポイントは即座に付与せず、別途受け取り処理が必要
+            // 注意: 報酬ポイントは即座に付与せず、24時間後に受け取り可能にする
             // clear_time = クリア時刻
-            // current_status = 歩数やコントリビューション数などの進捗値
+            // current_status = 実際の進捗値（歩数またはコントリビューション数）
 
             // デバッグ: 更新後の状態を確認
             const [verifyRows] = await conn.query<RowDataPacket[]>(
@@ -484,8 +495,8 @@ export const missionModel = {
     },
 
     async updateCurrentStatus(userId: string, missionId: string, status: number): Promise<void> {
-        // クリア済みのミッションの場合でもcurrent_statusを更新する
-        // (current_statusには歩数やコントリビューション数などの進捗値が記録される)
+        // クリア済みのミッションの場合はcurrent_statusを更新しない
+        // (current_statusにはクリア時の実際の進捗値が記録されているため)
         await db.query(
             'UPDATE MISSION_CLEARD SET current_status = ? WHERE user_id = ? AND mission_id = ? AND clear_status = false',
             [status, userId, missionId]
@@ -718,6 +729,7 @@ export const missionModel = {
              WHERE user_id = ? 
              AND clear_status = true 
              AND clear_time IS NOT NULL
+             AND clear_time < '2099-01-01'
              AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) >= 86400`,
             [user_id]
         )
@@ -731,12 +743,11 @@ export const missionModel = {
         claimable: number
         totalCleared: number
     }> {
-        // 受け取り済み報酬数（報酬受け取り処理で別管理が必要）
+        // 受け取り済み報酬数
         const [claimedRows] = await db.query<RowDataPacket[]>(
             `SELECT COUNT(*) as count FROM MISSION_CLEARD 
              WHERE user_id = ? AND clear_status = true 
-             AND clear_time IS NOT NULL 
-             AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) < 86400`,
+             AND clear_time >= '2099-01-01'`,
             [user_id]
         )
 
@@ -745,6 +756,7 @@ export const missionModel = {
             `SELECT COUNT(*) as count FROM MISSION_CLEARD 
              WHERE user_id = ? AND clear_status = true 
              AND clear_time IS NOT NULL 
+             AND clear_time < '2099-01-01'
              AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) < 86400`,
             [user_id]
         )
@@ -754,6 +766,7 @@ export const missionModel = {
             `SELECT COUNT(*) as count FROM MISSION_CLEARD 
              WHERE user_id = ? AND clear_status = true 
              AND clear_time IS NOT NULL 
+             AND clear_time < '2099-01-01'
              AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) >= 86400`,
             [user_id]
         )
@@ -766,18 +779,18 @@ export const missionModel = {
         )
 
         return {
-            alreadyClaimed: 0, // 別途報酬受け取り管理テーブルが必要
+            alreadyClaimed: Number(claimedRows[0]?.count) || 0,
             waitingForCooldown: Number(cooldownRows[0]?.count) || 0,
             claimable: Number(claimableRows[0]?.count) || 0,
             totalCleared: Number(totalRows[0]?.count) || 0,
         }
     },
-    // 報酬受け取り済みにする（clear_timeを設定して受け取り済みフラグとする）
+    // 報酬受け取り済みにする（clear_timeを2099年に設定して受け取り済みフラグとする）
     async markRewardReceived(user_id: string, mission_id: string): Promise<void> {
         await db.query(
             `UPDATE MISSION_CLEARD 
-             SET clear_time = NOW() 
-             WHERE user_id = ? AND mission_id = ? AND clear_time IS NULL`,
+             SET clear_time = '2099-12-31 23:59:59'
+             WHERE user_id = ? AND mission_id = ? AND clear_time < '2099-01-01'`,
             [user_id, mission_id]
         )
     },
