@@ -7,6 +7,7 @@ import {
     deleteMission,
     getAllMissions,
     getMissionClearStatus,
+    getRewardStatus,
     getUserMissionDetails,
     getUserMissionStatus,
     registerMission,
@@ -50,6 +51,9 @@ router.put('/clear', requireCompleteUser, handleValidationErrors, clearUserMissi
 
 // ミッション報酬一括受け取り - 状態更新なのでPUTを使用
 router.put('/claim-all', requireCompleteUser, claimAllRewards)
+
+// 報酬状況確認
+router.get('/reward-status', requireCompleteUser, getRewardStatus)
 
 // ミッション同期処理 - 状態更新なのでPUTを使用
 router.put('/sync', requireCompleteUser, syncMissions)
