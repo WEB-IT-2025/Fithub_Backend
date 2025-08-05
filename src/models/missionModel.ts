@@ -6,7 +6,8 @@ interface MissionRow extends RowDataPacket {
     mission_name: string
     mission_content: string
     reward_content: string
-    mission_type: string
+    mission_type: 'step' | 'contribution'
+    mission_category: 'daily' | 'weekly'
 }
 
 interface MissionCleardRow extends RowDataPacket {
@@ -17,7 +18,8 @@ interface MissionCleardRow extends RowDataPacket {
     clear_status: boolean
     clear_time: Date | null
     reward_content: number
-    mission_type: string
+    mission_type: 'step' | 'contribution'
+    mission_category: 'daily' | 'weekly'
 }
 
 export interface MissionInsertDTO {
@@ -25,7 +27,8 @@ export interface MissionInsertDTO {
     mission_name: string
     mission_content: string
     reward_content: string
-    mission_type: string
+    mission_type: 'step' | 'contribution'
+    mission_category: 'daily' | 'weekly'
 }
 
 interface UserMissionDetail extends RowDataPacket {
@@ -33,13 +36,13 @@ interface UserMissionDetail extends RowDataPacket {
     mission_name: string
     mission_content: string
     mission_reward: string
-    mission_category: string
+    mission_category: 'daily' | 'weekly'
     mission_goal: number
     current_status: number
     clear_status: boolean
     clear_time: Date | null
     reward_content: number
-    mission_type: string
+    mission_type: 'step' | 'contribution'
     progress_percentage: number
 }
 
@@ -71,14 +74,22 @@ export const missionModel = {
             await conn.beginTransaction()
 
             // 1. MISSIONテーブルにミッションを挿入
-            const { mission_id, mission_name, mission_content, reward_content, mission_type } = mission
+            const { mission_id, mission_name, mission_content, reward_content, mission_type, mission_category } =
+                mission
             await conn.query(
-                'INSERT INTO MISSION (mission_id, mission_name, mission_content, reward_content, mission_type) VALUES (?, ?, ?, ?, ?)',
-                [mission_id, mission_name, mission_content, reward_content, mission_type]
+                'INSERT INTO MISSION (mission_id, mission_name, mission_content, reward_content, mission_type, mission_category) VALUES (?, ?, ?, ?, ?, ?)',
+                [mission_id, mission_name, mission_content, reward_content, mission_type, mission_category]
             )
 
             // 2. 全既存ユーザーに対してMISSION_CLEARDレコードを作成
-            await this.createMissionCleardForAllUsers(mission_id, mission_content, reward_content, mission_type, conn)
+            await this.createMissionCleardForAllUsers(
+                mission_id,
+                mission_content,
+                reward_content,
+                mission_type,
+                mission_category,
+                conn
+            )
 
             await conn.commit()
         } catch (err) {
@@ -89,9 +100,27 @@ export const missionModel = {
         }
     },
 
+    async getAllUserIds(): Promise<{ user_id: string }[]> {
+        const [rows] = await db.query<RowDataPacket[]>('SELECT user_id FROM USERS')
+        return rows as { user_id: string }[]
+    },
     async deleteMission(missionId: string): Promise<boolean> {
         const [result] = await db.query<OkPacket>('DELETE FROM MISSION WHERE mission_id = ?', [missionId])
         return result.affectedRows > 0
+    },
+    async resetDailyMissions(): Promise<void> {
+        await db.query(
+            `UPDATE MISSION_CLEARD 
+         SET current_status = 0, clear_status = false, clear_time = NULL 
+         WHERE mission_category = 'daily'`
+        )
+    },
+    async resetWeeklyMissions(): Promise<void> {
+        await db.query(
+            `UPDATE MISSION_CLEARD 
+         SET current_status = 0, clear_status = false, clear_time = NULL 
+         WHERE mission_category = 'weekly'`
+        )
     },
 
     /**
@@ -111,9 +140,16 @@ export const missionModel = {
 
                 await conn.query(
                     `INSERT IGNORE INTO MISSION_CLEARD 
-                     (user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type) 
-                     VALUES (?, ?, ?, 0, false, NULL, ?, ?)`,
-                    [userId, mission.mission_id, goalValue, parseInt(mission.reward_content), mission.mission_type]
+     (user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type, mission_category) 
+     VALUES (?, ?, ?, 0, false, NULL, ?, ?, ?)`,
+                    [
+                        userId,
+                        mission.mission_id,
+                        goalValue,
+                        parseInt(mission.reward_content),
+                        mission.mission_type,
+                        mission.mission_category,
+                    ]
                 )
             }
 
@@ -134,6 +170,7 @@ export const missionModel = {
         missionContent: string,
         rewardContent: string,
         missionType: string,
+        missionCategory: string,
         conn?: any
     ): Promise<void> {
         // 全ユーザーIDを取得
@@ -153,16 +190,16 @@ export const missionModel = {
             if (conn) {
                 await conn.query(
                     `INSERT IGNORE INTO MISSION_CLEARD 
-                     (user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type) 
-                     VALUES (?, ?, ?, 0, false, NULL, ?, ?)`,
-                    [user.user_id, missionId, goalValue, parseInt(rewardContent), missionType]
+                        (user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type, mission_category) 
+                        VALUES (?, ?, ?, 0, false, NULL, ?, ?, ?)`,
+                    [user.user_id, missionId, goalValue, parseInt(rewardContent), missionType, missionCategory] // ← 必要に応じて 'weekly' に
                 )
             } else {
                 await db.query(
                     `INSERT IGNORE INTO MISSION_CLEARD 
-                     (user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type) 
-                     VALUES (?, ?, ?, 0, false, NULL, ?, ?)`,
-                    [user.user_id, missionId, goalValue, parseInt(rewardContent), missionType]
+                     (user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type, mission_category) 
+                     VALUES (?, ?, ?, 0, false, NULL, ?, ?, ?)`,
+                    [user.user_id, missionId, goalValue, parseInt(rewardContent), missionType, missionCategory] // ← 必要に応じて 'weekly' に
                 )
             }
         }
@@ -173,15 +210,14 @@ export const missionModel = {
      * 例：「1000歩歩く」→1000、「5個投稿する」→5
      */
     extractGoalFromContent(content: string): number {
-        const match = content.match(/(\d+)/)
-        return match ? parseInt(match[1]) : 1
+        return parseInt(content, 10) || 1
     },
 
     async getUserMissionStatus(userId: string): Promise<MissionCleardRow[]> {
         const [rows] = await db.query<MissionCleardRow[]>(
-            `SELECT user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type
-             FROM MISSION_CLEARD
-             WHERE user_id = ?`,
+            `SELECT user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type, mission_category
+                FROM MISSION_CLEARD
+                WHERE user_id = ?`,
             [userId]
         )
         return rows
@@ -192,26 +228,26 @@ export const missionModel = {
      */
     async getUserMissionDetails(userId: string): Promise<UserMissionDetail[]> {
         const [rows] = await db.query<UserMissionDetail[]>(
-            `SELECT 
+            `SELECT
                 m.mission_id,
                 m.mission_name,
                 m.mission_content,
-                m.reward_content as mission_reward,
-                m.mission_type as mission_category,
+                m.reward_content AS mission_reward,
+                m.mission_type  AS mission_type,
+                m.mission_category AS mission_category,
                 mc.mission_goal,
                 mc.current_status,
                 mc.clear_status,
                 mc.clear_time,
                 mc.reward_content,
-                mc.mission_type,
-                CASE 
-                    WHEN mc.mission_goal > 0 THEN ROUND((mc.current_status / mc.mission_goal * 100), 1)
-                    ELSE 0 
-                END as progress_percentage
-             FROM MISSION m
-             JOIN MISSION_CLEARD mc ON m.mission_id = mc.mission_id
-             WHERE mc.user_id = ?
-             ORDER BY mc.clear_status ASC, m.mission_type, m.mission_id`,
+                CASE
+                    WHEN mc.mission_goal > 0 THEN ROUND(mc.current_status / mc.mission_goal * 100, 1)
+                    ELSE 0
+                END AS progress_percentage
+                FROM MISSION m
+                JOIN MISSION_CLEARD mc ON m.mission_id = mc.mission_id
+                WHERE mc.user_id = ?
+                ORDER BY mc.clear_status ASC, m.mission_type, m.mission_id`,
             [userId]
         )
         return rows
@@ -355,36 +391,32 @@ export const missionModel = {
      * @returns クリア判定結果
      */
     async checkMissionClearStatus(userId: string, missionId: string): Promise<MissionProgressData | null> {
-        // MISSION_CLEARDから情報を取得（MISSIONテーブルと結合）
-        const [missionClearRows] = await db.query<RowDataPacket[]>(
-            `SELECT mc.mission_goal, mc.mission_type, m.mission_content 
-             FROM MISSION_CLEARD mc
-             JOIN MISSION m ON mc.mission_id = m.mission_id
-             WHERE mc.user_id = ? AND mc.mission_id = ?`,
+        // MISSION_CLEARD から必要情報を取得
+        const [rows] = await db.query<RowDataPacket[]>(
+            `SELECT 
+       mc.mission_goal, 
+       mc.mission_type, 
+       mc.mission_category 
+     FROM MISSION_CLEARD mc
+     WHERE mc.user_id = ? AND mc.mission_id = ?`,
             [userId, missionId]
         )
+        if (rows.length === 0) return null
 
-        if (missionClearRows.length === 0) return null
+        const { mission_goal: targetValue, mission_type, mission_category } = rows[0]
 
-        const { mission_goal: targetValue, mission_type, mission_content } = missionClearRows[0]
-
-        // ユーザーの進捗データを取得
-        const userProgress = await this.getUserProgressData(userId, mission_type as 'daily' | 'weekly')
+        // 指定周期のユーザーデータを取得
+        const userProgress = await this.getUserProgressData(userId, mission_category as 'daily' | 'weekly')
         if (!userProgress) return null
 
+        // mission_type によって currentValue を決定
         let currentValue = 0
-
-        // mission_contentに基づいて参照するデータを決定
-        if (mission_content.includes('歩')) {
-            // 歩数系ミッション（「歩」という文字が含まれている場合）
+        if (mission_type === 'step') {
             currentValue = userProgress.totalSteps || 0
-        } else if (mission_content.includes('個') || mission_content.includes('回')) {
-            // 貢献度系ミッション（「個」または「回」という文字が含まれている場合）
+        } else if (mission_type === 'contribution') {
             currentValue = userProgress.totalContributions || 0
         } else {
-            // 未対応の場合は0とする
-            console.warn(`未対応のmission_content: ${mission_content}`)
-            currentValue = 0
+            console.warn(`未対応の mission_type: ${mission_type}`)
         }
 
         const isClear = currentValue >= targetValue
@@ -393,7 +425,7 @@ export const missionModel = {
             isClear,
             currentValue,
             targetValue,
-            missionType: mission_content,
+            missionType: mission_type,
         }
     },
 
@@ -493,9 +525,16 @@ export const missionModel = {
 
                 await conn.query(
                     `INSERT INTO MISSION_CLEARD 
-                     (user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type) 
-                     VALUES (?, ?, ?, 0, false, NULL, ?, ?)`,
-                    [record.user_id, record.mission_id, goalValue, parseInt(record.reward_content), record.mission_type]
+                        (user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type, mission_category) 
+                        VALUES (?, ?, ?, 0, false, NULL, ?, ?, ?)`,
+                    [
+                        record.user_id,
+                        record.mission_id,
+                        goalValue,
+                        parseInt(record.reward_content),
+                        record.mission_type,
+                        'daily',
+                    ]
                 )
 
                 repairedMissions++

@@ -11,6 +11,7 @@ import {
     getUserMissionStatus,
     registerMission,
     revertUserMission,
+    syncMissions,
 } from '~/controllers/missionController'
 import { authenticateJWT } from '~/middlewares/authenticateJWT'
 import { requireAdmin } from '~/middlewares/requireAdmin'
@@ -41,12 +42,14 @@ router.get('/check-status', requireCompleteUser, handleValidationErrors, getMiss
 // ミッション進捗チェック&自動クリア(テスト済み)
 router.post('/check-progress', requireCompleteUser, handleValidationErrors, checkMissionProgress)
 
+//syncっていうルーターと丸かぶりだからとりまコメントアウト
 // 全ミッション一括進捗チェック(テスト済み)
-router.post('/check-all-progress', requireCompleteUser, handleValidationErrors, checkAllMissionProgress)
+// router.post('/check-all-progress', requireCompleteUser, handleValidationErrors, checkAllMissionProgress)
 
 // ミッションクリア(テスト済み)
 router.post('/clear', requireCompleteUser, handleValidationErrors, clearUserMission)
 
+router.post('/sync', requireCompleteUser, syncMissions)
 // それ以外の管理系は認証付き
 router.use(authenticateJWT)
 

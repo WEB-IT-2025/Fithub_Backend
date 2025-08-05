@@ -11,13 +11,27 @@ export const getAllMissions = asyncHandler(async (req: Request, res: Response) =
 })
 
 export const registerMission = asyncHandler(async (req: Request, res: Response) => {
-    const { mission_id, mission_name, mission_content, reward_content, mission_type } = req.body
+    const { mission_id, mission_name, mission_content, reward_content, mission_type, mission_category } = req.body
 
-    if (!mission_id || !mission_name || !mission_content || reward_content == null || !mission_type) {
+    if (
+        !mission_id ||
+        !mission_name ||
+        !mission_content ||
+        reward_content == null ||
+        !mission_type ||
+        !mission_category
+    ) {
         return res.status(400).json({ error: 'すべてのミッション情報を入力してください' })
     }
 
-    const mission: MissionInsertDTO = { mission_id, mission_name, mission_content, reward_content, mission_type }
+    const mission: MissionInsertDTO = {
+        mission_id,
+        mission_name,
+        mission_content,
+        reward_content,
+        mission_type,
+        mission_category,
+    }
 
     await missionModel.insertMission(mission)
     res.status(201).json({ message: 'ミッション情報を登録しました。' })
@@ -171,18 +185,51 @@ export const checkAllMissionProgress = asyncHandler(async (req: Request, res: Re
     })
 })
 
-// 追加が必要
 export const getUserMissionDetails = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, type } = req.query // クエリから取得
+    const { user_id, category, cleared } = req.query
 
     if (!user_id) {
         return res.status(400).json({ error: 'user_idが必要です' })
     }
 
-    const missions = await missionModel.getUserMissionDetails(String(user_id))
+    let missions = await missionModel.getUserMissionDetails(String(user_id))
 
-    // タブ切り替え対応
-    const filteredMissions = type ? missions.filter((m) => m.mission_type === type) : missions
+    if (category) {
+        missions = missions.filter((m) => m.mission_category.toLowerCase() === String(category).toLowerCase())
+    }
 
-    res.status(200).json(filteredMissions)
+    if (cleared === 'false') {
+        missions = missions.filter((m) => m.clear_status == false)
+    }
+
+    res.status(200).json(missions)
+})
+
+export const syncMissions = asyncHandler(async (req: Request, res: Response) => {
+    const userId = (req.user as any)?.user_id
+    if (!userId) {
+        return res.status(401).json({ error: '認証が必要です' })
+    }
+
+    const now = new Date()
+
+    // 1) 日次リセット（毎日0時以降の最初の呼び出しで実行）
+    //    └ ログなどで「最後に日次リセットした日時」を保持すれば、二重実行防止も可能
+    await missionModel.resetDailyMissions()
+
+    // 2) 週次リセット（毎週月曜日0時以降の最初の呼び出しで実行）
+    if (now.getDay() === 1) {
+        // 0=日曜,1=月曜…
+        await missionModel.resetWeeklyMissions()
+    }
+
+    // 3) 進捗チェック＆クリア
+    const result = await missionModel.checkAndUpdateAllMissions(userId)
+
+    res.status(200).json({
+        message: `${result.checkedCount}件のミッションを同期しました。`,
+        checkedCount: result.checkedCount,
+        newlyCleared: result.newlyCleared,
+        newlyClearedCount: result.newlyCleared.length,
+    })
 })

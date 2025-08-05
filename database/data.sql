@@ -3,32 +3,21 @@
 -- ============================
 DROP TABLE IF EXISTS USERS_ITEMS;
 DROP TABLE IF EXISTS USERS_PETS;
+DROP TABLE IF EXISTS EXERCISE_DATE;
 DROP TABLE IF EXISTS EXERCISE;
 DROP TABLE IF EXISTS CONTRIBUTIONS;
 DROP TABLE IF EXISTS MISSION_CLEARD;
-DROP TABLE IF EXISTS MISSION;
-DROP TABLE IF EXISTS ITEMS;
 DROP TABLE IF EXISTS GROUP_MEMBER;
 DROP TABLE IF EXISTS GROUP_INFO;
+DROP TABLE IF EXISTS PURCHASES;
 DROP TABLE IF EXISTS PETS;
+DROP TABLE IF EXISTS ITEMS;
+DROP TABLE IF EXISTS MISSION;
 DROP TABLE IF EXISTS THRESHOLD;
 DROP TABLE IF EXISTS USERS;
 
 -- ============================
 -- 🧱 2. CREATE TABLES (PK → FK順)
--- ============================
--- 
--- 🔄 ON DELETE CASCADE:
--- All foreign keys referencing USERS have ON DELETE CASCADE
--- This means when a user is deleted, all related data will be automatically deleted:
--- - EXERCISE records
--- - CONTRIBUTIONS records  
--- - GROUP_MEMBER entries
--- - MISSION_CLEARD progress
--- - USERS_PETS assignments
--- - USERS_ITEMS inventory
--- - GROUP_INFO (if user is admin)
--- 
 -- ============================
 
 CREATE TABLE USERS (
@@ -47,27 +36,58 @@ CREATE TABLE USERS (
     github_username VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE PETS (
-    pet_id VARCHAR(64) PRIMARY KEY,
-    pet_name VARCHAR(20) NOT NULL,
-    pet_image_folder VARCHAR(255) NOT NULL
-);
-
 CREATE TABLE ITEMS (
     item_id VARCHAR(64) PRIMARY KEY,
     item_name VARCHAR(50) NOT NULL,
     item_point INT NOT NULL,
-    sold_count INT NOT NULL,
+    sold_count INT,
     item_image_folder VARCHAR(255) NOT NULL,
     item_create_day TIMESTAMP NOT NULL,
-    item_delete_day TIMESTAMP NOT NULL
+    item_delete_day TIMESTAMP NOT NULL,
+    item_details VARCHAR(16) NOT NULL,
+    item_category VARCHAR(50) NOT NULL
 );
 
-CREATE TABLE THRESHOLD (
-    steps_point_settings INT NOT NULL,
-    pet_size_logic INT NOT NULL,
-    pet_health_logic INT NOT NULL,
-    exercise_settings INT NOT NULL
+CREATE TABLE PETS (
+    item_id VARCHAR(64) PRIMARY KEY, 
+    pet_name VARCHAR(20) NOT NULL,
+    pet_image_folder VARCHAR(255) NOT NULL,
+    pet_type VARCHAR(255) NOT NULL,
+    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE 
+);
+
+CREATE TABLE PURCHASES (
+    purchase_id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL,
+    item_id VARCHAR(64) NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    purchase_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE
+);
+
+CREATE TABLE USERS_PETS (
+    user_id VARCHAR(255) NOT NULL,
+    item_id VARCHAR(255) NOT NULL, 
+    user_main_pet BOOLEAN NOT NULL,
+    user_pet_name VARCHAR(20) NOT NULL,
+    user_sub_pet BOOLEAN,
+    pet_size INT NOT NULL,
+    pet_states INT NOT NULL,
+    PRIMARY KEY (user_id, item_id),
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES PETS(item_id) ON DELETE CASCADE
+);
+
+CREATE TABLE USERS_ITEMS (
+    user_id VARCHAR(255) NOT NULL,
+    item_id VARCHAR(255) NOT NULL,
+    item_count INT NOT NULL,
+    category VARCHAR(255) NOT NULL,
+    usage_state BOOLEAN,
+    PRIMARY KEY (user_id, item_id),
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE
 );
 
 CREATE TABLE GROUP_INFO (
@@ -95,6 +115,7 @@ CREATE TABLE EXERCISE (
     PRIMARY KEY (user_id, day),
     FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE
 );
+
 CREATE TABLE EXERCISE_DATE (
     user_id VARCHAR(64) NOT NULL,
     timestamp DATETIME NOT NULL,
@@ -116,7 +137,8 @@ CREATE TABLE MISSION (
     mission_name VARCHAR(50) NOT NULL,
     mission_content VARCHAR(255) NOT NULL,
     reward_content VARCHAR(255) NOT NULL,
-    mission_type VARCHAR(255) NOT NULL
+    mission_type VARCHAR(255) NOT NULL,
+    mission_category VARCHAR(50) NOT NULL
 );
 
 CREATE TABLE MISSION_CLEARD (
@@ -128,33 +150,17 @@ CREATE TABLE MISSION_CLEARD (
     clear_time TIMESTAMP,
     reward_content INT NOT NULL,
     mission_type VARCHAR(255) NOT NULL,
+    mission_category VARCHAR(50) NOT NULL,
     PRIMARY KEY (user_id, mission_id),
     FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
     FOREIGN KEY (mission_id) REFERENCES MISSION(mission_id) ON DELETE CASCADE
 );
 
-CREATE TABLE USERS_PETS (
-    user_id VARCHAR(255) NOT NULL,
-    pet_id VARCHAR(255) NOT NULL,
-    user_main_pet BOOLEAN NOT NULL,
-    user_pet_name VARCHAR(20) NOT NULL,
-    user_sub_pet BOOLEAN,
-    pet_size INT NOT NULL,
-    pet_states INT NOT NULL,
-    PRIMARY KEY (user_id, pet_id),
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (pet_id) REFERENCES PETS(pet_id) ON DELETE CASCADE
-);
-
-CREATE TABLE USERS_ITEMS (
-    user_id VARCHAR(255) NOT NULL,
-    item_id VARCHAR(255) NOT NULL,
-    item_count INT NOT NULL,
-    category VARCHAR(255) NOT NULL,
-    usage_state BOOLEAN,
-    PRIMARY KEY (user_id, item_id),
-    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE
+CREATE TABLE THRESHOLD (
+    steps_point_settings INT NOT NULL,
+    pet_size_logic INT NOT NULL,
+    pet_health_logic INT NOT NULL,
+    exercise_settings INT NOT NULL
 );
 -- ============================
 -- 📦 3. INSERT SAMPLE DATA FOR TOKEN REFRESH TESTING
