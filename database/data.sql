@@ -137,7 +137,8 @@ CREATE TABLE MISSION (
     mission_name VARCHAR(50) NOT NULL,
     mission_content VARCHAR(255) NOT NULL,
     reward_content VARCHAR(255) NOT NULL,
-    mission_type VARCHAR(255) NOT NULL
+    mission_type VARCHAR(255) NOT NULL,
+    mission_category VARCHAR(50) NOT NULL
 );
 
 CREATE TABLE MISSION_CLEARD (
@@ -149,6 +150,7 @@ CREATE TABLE MISSION_CLEARD (
     clear_time TIMESTAMP,
     reward_content INT NOT NULL,
     mission_type VARCHAR(255) NOT NULL,
+    mission_category VARCHAR(50) NOT NULL,
     PRIMARY KEY (user_id, mission_id),
     FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
     FOREIGN KEY (mission_id) REFERENCES MISSION(mission_id) ON DELETE CASCADE
