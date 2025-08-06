@@ -213,16 +213,6 @@ export const missionModel = {
         return parseInt(content, 10) || 1
     },
 
-    async getUserMissionStatus(userId: string): Promise<MissionCleardRow[]> {
-        const [rows] = await db.query<MissionCleardRow[]>(
-            `SELECT user_id, mission_id, mission_goal, current_status, clear_status, clear_time, reward_content, mission_type, mission_category
-                FROM MISSION_CLEARD
-                WHERE user_id = ?`,
-            [userId]
-        )
-        return rows
-    },
-
     /**
      * ユーザーのミッション詳細情報を取得（MISSIONテーブルと結合）
      */
@@ -288,7 +278,7 @@ export const missionModel = {
         try {
             // MISSION_CLEARDテーブルの該当レコードを更新
             const [result] = await db.query<OkPacket>(
-                'UPDATE MISSION_CLEARD SET clear_status = true, clear_time = NOW() WHERE user_id = ? AND mission_id = ?',
+                'UPDATE MISSION_CLEARD SET clear_status = true, clear_time = CONVERT_TZ(NOW(), "+00:00", "+09:00") WHERE user_id = ? AND mission_id = ?',
                 [user_id, mission_id]
             )
             return result.affectedRows > 0
@@ -297,54 +287,47 @@ export const missionModel = {
             return false
         }
     },
-    async claimAllClearedMissions(userId: string): Promise<{
+    /**
+     * 報酬を受け取る（専用API用）
+     * クリア済みで翌日0時以降のミッションの報酬をまとめて受け取る
+     */
+    async claimRewards(userId: string): Promise<{
         claimedCount: number
         totalReward: number
+        claimedMissions: { mission_id: string; reward_content: number }[]
     }> {
         const conn = await db.getConnection()
 
         try {
             await conn.beginTransaction()
 
-            // 1. 報酬を受け取る対象ミッションを取得（24時間経過後）
-            const [missions] = await conn.query<RowDataPacket[]>(
-                `SELECT mission_id, reward_content 
-                FROM MISSION_CLEARD 
-                WHERE user_id = ? 
-                AND clear_status = true 
-                AND clear_time IS NOT NULL
-                AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) >= 86400`,
-                [userId]
-            )
+            // 1. 受け取り可能な報酬を取得
+            const claimableMissions = await this.getUnclaimedRewards(userId)
 
-            if (missions.length === 0) {
+            if (claimableMissions.length === 0) {
                 await conn.rollback()
-                return { claimedCount: 0, totalReward: 0 }
+                return { claimedCount: 0, totalReward: 0, claimedMissions: [] }
             }
 
             // 2. 合計報酬を計算
-            const totalReward = missions.reduce((sum, m) => sum + (Number(m.reward_content) || 0), 0)
+            const totalReward = claimableMissions.reduce((sum, m) => sum + (Number(m.reward_content) || 0), 0)
 
             // 3. ユーザーに報酬を加算
-            await conn.query(`UPDATE USERS SET point = point + ? WHERE user_id = ?`, [totalReward, userId])
+            await this.addUserPoints(userId, totalReward)
 
-            // 4. 報酬受け取り済みを記録するため、clear_timeを遠い未来の日付に更新
-            // (この方法は一時的な解決策です。本来は専用カラムが必要)
-            const missionIds = missions.map((m) => m.mission_id)
-            if (missionIds.length > 0) {
-                const placeholders = missionIds.map(() => '?').join(',')
-                await conn.query(
-                    `UPDATE MISSION_CLEARD 
-                     SET clear_time = '2099-12-31 23:59:59'
-                     WHERE user_id = ? AND mission_id IN (${placeholders})`,
-                    [userId, ...missionIds]
-                )
+            // 4. 報酬受け取り済みを記録
+            for (const mission of claimableMissions) {
+                await this.markRewardReceived(userId, mission.mission_id)
             }
 
             await conn.commit()
             return {
-                claimedCount: missions.length,
+                claimedCount: claimableMissions.length,
                 totalReward,
+                claimedMissions: claimableMissions.map((m) => ({
+                    mission_id: m.mission_id,
+                    reward_content: Number(m.reward_content),
+                })),
             }
         } catch (err) {
             await conn.rollback()
@@ -378,7 +361,7 @@ export const missionModel = {
             // 2. 報酬が既に受け取られている場合、ポイントを差し引く
             if (clear_status && clear_time !== null) {
                 const rewardAmount = Number(reward_content) || 0
-                await conn.query(`UPDATE USERS SET user_point = GREATEST(0, user_point - ?) WHERE user_id = ?`, [
+                await conn.query(`UPDATE USERS SET point = GREATEST(0, point - ?) WHERE user_id = ?`, [
                     rewardAmount,
                     userId,
                 ])
@@ -406,7 +389,7 @@ export const missionModel = {
     },
 
     /**
-     * ミッションクリア状態を更新（報酬は即座に付与しない）
+     * ミッションクリア状態を更新（報酬は即座に付与せず、翌日0時以降に受け取り可能）
      * @param userId ユーザーID
      * @param missionId ミッションID
      * @returns 成功した場合はtrue、失敗した場合はfalse
@@ -444,7 +427,7 @@ export const missionModel = {
 
             const [updateResult] = await conn.query<OkPacket>(
                 `UPDATE MISSION_CLEARD 
-                 SET clear_status = true, clear_time = NOW(), current_status = ?
+                 SET clear_status = true, clear_time = CONVERT_TZ(NOW(), '+00:00', '+09:00'), current_status = ?
                  WHERE user_id = ? AND mission_id = ? AND clear_status = false`,
                 [progressData.currentValue, userId, missionId]
             )
@@ -730,7 +713,7 @@ export const missionModel = {
              AND clear_status = true 
              AND clear_time IS NOT NULL
              AND clear_time < '2099-01-01'
-             AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) >= 86400`,
+             AND DATE(clear_time) < DATE(CONVERT_TZ(NOW(), '+00:00', '+09:00'))`,
             [user_id]
         )
         return rows
@@ -751,23 +734,23 @@ export const missionModel = {
             [user_id]
         )
 
-        // クールダウン中（クリア済みだが24時間未経過）
+        // クールダウン中（クリア済みだが翌日0時前）
         const [cooldownRows] = await db.query<RowDataPacket[]>(
             `SELECT COUNT(*) as count FROM MISSION_CLEARD 
              WHERE user_id = ? AND clear_status = true 
              AND clear_time IS NOT NULL 
              AND clear_time < '2099-01-01'
-             AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) < 86400`,
+             AND DATE(clear_time) = DATE(CONVERT_TZ(NOW(), '+00:00', '+09:00'))`,
             [user_id]
         )
 
-        // 受け取り可能
+        // 受け取り可能（クリア日が今日より前）
         const [claimableRows] = await db.query<RowDataPacket[]>(
             `SELECT COUNT(*) as count FROM MISSION_CLEARD 
              WHERE user_id = ? AND clear_status = true 
              AND clear_time IS NOT NULL 
              AND clear_time < '2099-01-01'
-             AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(clear_time)) >= 86400`,
+             AND DATE(clear_time) < DATE(CONVERT_TZ(NOW(), '+00:00', '+09:00'))`,
             [user_id]
         )
 
@@ -797,6 +780,6 @@ export const missionModel = {
 
     // ユーザーのポイント加算
     async addUserPoints(user_id: string, points: number): Promise<void> {
-        await db.query(`UPDATE USERS SET user_point = user_point + ? WHERE user_id = ?`, [points, user_id])
+        await db.query(`UPDATE USERS SET point = point + ? WHERE user_id = ?`, [points, user_id])
     },
 }

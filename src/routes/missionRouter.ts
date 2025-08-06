@@ -1,15 +1,12 @@
 import express from 'express'
 // src/routes/missionRoutes.ts
 import {
-    checkMissionProgress,
     claimAllRewards,
     clearUserMission,
     deleteMission,
     getAllMissions,
-    getMissionClearStatus,
     getRewardStatus,
     getUserMissionDetails,
-    getUserMissionStatus,
     registerMission,
     revertUserMission,
     syncMissions,
@@ -26,47 +23,36 @@ import {
 
 const router = express.Router()
 
-// ミッション一覧(テスト済み)
+// === 一般ユーザー向けAPI ===
+
+// ミッション一覧取得
 router.get('/list', getAllMissions)
 
-// ミッション状況取得
-router.get('/status', requireCompleteUser, handleValidationErrors, getUserMissionStatus)
-
-// ミッション詳細一覧(daily, weekly判別)(テスト済み)
+// ユーザーのミッション詳細一覧（進捗含む）
 router.get('/details', requireCompleteUser, handleValidationErrors, getUserMissionDetails)
-// ミッションクリア状況確認のみ（進捗確認）(テスト済み)
 
-// http://localhost:3000/api/mission/check-status?user_id=xxx&mission_id=mx
-router.get('/check-status', requireCompleteUser, handleValidationErrors, getMissionClearStatus)
+// ミッション同期処理（進捗チェック + 自動クリア判定）
+router.put('/sync', requireCompleteUser, syncMissions)
 
-// ミッション進捗チェック&自動クリア(テスト済み) - 状態更新なのでPUTを使用
-router.put('/check-progress', requireCompleteUser, handleValidationErrors, checkMissionProgress)
-
-//syncっていうルーターと丸かぶりだからとりまコメントアウト
-// 全ミッション一括進捗チェック(テスト済み)
-// router.post('/check-all-progress', requireCompleteUser, handleValidationErrors, checkAllMissionProgress)
-
-// ミッションクリア(テスト済み) - 状態更新なのでPUTを使用
+// 手動ミッションクリア
 router.put('/clear', requireCompleteUser, handleValidationErrors, clearUserMission)
 
-// ミッション報酬一括受け取り - 状態更新なのでPUTを使用
-router.put('/claim-all', requireCompleteUser, claimAllRewards)
+// 報酬一括受け取り
+router.put('/claim-rewards', requireCompleteUser, claimAllRewards)
 
 // 報酬状況確認
-router.get('/reward-status', requireCompleteUser, getRewardStatus)
+router.get('/rewards', requireCompleteUser, getRewardStatus)
 
-// ミッション同期処理 - 状態更新なのでPUTを使用
-router.put('/sync', requireCompleteUser, syncMissions)
-// それ以外の管理系は認証付き
+// === 管理者向けAPI ===
 router.use(authenticateJWT)
 
-// ミッション登録（運営）(テスト済み)
-router.post('/admin/mission_create', requireAdmin, validateMissionRegistration, handleValidationErrors, registerMission)
+// ミッション登録（運営）
+router.post('/admin/create', requireAdmin, validateMissionRegistration, handleValidationErrors, registerMission)
 
-// ミッション削除（運営）(テスト済み)
-router.delete('/admin/mission_delete', requireAdmin, validateMissionIdQuery, handleValidationErrors, deleteMission)
+// ミッション削除（運営）
+router.delete('/admin/delete', requireAdmin, validateMissionIdQuery, handleValidationErrors, deleteMission)
 
-// ミッションクリア取り消し（運営）(テスト済み)
+// ミッションクリア取り消し（運営）
 router.put('/admin/revert', requireAdmin, validateRevertMissionBody, handleValidationErrors, revertUserMission)
 
 export default router

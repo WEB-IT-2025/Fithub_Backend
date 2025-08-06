@@ -1,4 +1,6 @@
 import { Request, Response } from 'express'
+import { RowDataPacket } from 'mysql2'
+import db from '~/config/database'
 import { asyncHandler } from '~/middlewares/asyncHandler'
 import { missionModel } from '~/models/missionModel'
 import { MissionInsertDTO } from '~/models/missionModel'
@@ -51,17 +53,6 @@ export const deleteMission = asyncHandler(async (req: Request, res: Response) =>
     }
 })
 
-export const getUserMissionStatus = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id } = req.query
-
-    if (!user_id) {
-        return res.status(400).json({ error: 'user_idが必要です' })
-    }
-
-    const status = await missionModel.getUserMissionStatus(String(user_id))
-    res.status(200).json(status)
-})
-
 export const clearUserMission = asyncHandler(async (req: Request, res: Response) => {
     const user_id = (req.user as UserPayload)?.user_id // 認証されたユーザーから取得
     const { mission_id } = req.body
@@ -75,8 +66,8 @@ export const clearUserMission = asyncHandler(async (req: Request, res: Response)
 
     if (cleared) {
         res.status(200).json({
-            message: 'ミッションをクリアしました！報酬は翌日以降に受け取ることができます。',
-            note: '報酬の受け取りは、ミッションクリアの翌日から可能です。',
+            message: 'ミッションをクリアしました！報酬は翌日0時以降に受け取ることができます。',
+            note: '報酬の受け取りは、翌日0時から可能です。',
         })
     } else {
         res.status(404).json({ error: 'ミッションが見つかりません、または既にクリア済みです。' })
@@ -101,93 +92,6 @@ export const revertUserMission = asyncHandler(async (req: Request, res: Response
     } else {
         res.status(404).json({ error: 'ミッションが見つかりません。' })
     }
-})
-
-export const clearMissionAndReward = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, mission_id } = req.params
-
-    if (!user_id || !mission_id) {
-        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
-    }
-
-    const success = await missionModel.markMissionClearedAndReward(user_id, mission_id)
-    if (success) {
-        res.status(200).json({ message: 'ミッションをクリアし、ポイントを付与しました。' })
-    } else {
-        res.status(400).json({ error: 'ミッションクリアに失敗しました。' })
-    }
-})
-/**
- * ミッションクリア状況確認のみ（進捗確認）
- * GET /api/missions/check-status?user_id=xxx&mission_id=xxx
- */
-export const getMissionClearStatus = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, mission_id } = req.query
-
-    if (!user_id || !mission_id) {
-        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
-    }
-
-    const clearStatus = await missionModel.checkMissionClearStatus(String(user_id), String(mission_id))
-
-    if (!clearStatus) {
-        return res.status(404).json({ error: 'ミッションまたはユーザーが見つかりません' })
-    }
-
-    res.status(200).json(clearStatus)
-})
-
-/**
- * ミッション進捗チェック&自動クリア
- * POST /api/missions/check-progress
- * Body: { user_id: string, mission_id: string }
- */
-export const checkMissionProgress = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, mission_id } = req.body
-
-    if (!user_id || !mission_id) {
-        return res.status(400).json({ error: 'user_idとmission_idが必要です' })
-    }
-
-    const result = await missionModel.updateMissionProgress(user_id, mission_id)
-
-    if (!result.updated) {
-        return res.status(404).json({ error: 'ミッションまたはユーザーが見つかりません' })
-    }
-
-    if (result.cleared) {
-        res.status(200).json({
-            message: 'ミッションをクリアしました！報酬を獲得しました。',
-            data: result.progressData,
-        })
-    } else {
-        res.status(200).json({
-            message: '進捗を更新しました。',
-            data: result.progressData,
-        })
-    }
-})
-
-/**
- * 全ミッション一括進捗チェック
- * POST /api/missions/check-all-progress
- * Body: { user_id: string }
- */
-export const checkAllMissionProgress = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id } = req.body
-
-    if (!user_id) {
-        return res.status(400).json({ error: 'user_idが必要です' })
-    }
-
-    const result = await missionModel.checkAndUpdateAllMissions(user_id)
-
-    res.status(200).json({
-        message: `${result.checkedCount}個のミッションをチェックしました。`,
-        checkedCount: result.checkedCount,
-        newlyCleared: result.newlyCleared,
-        newlyClearedCount: result.newlyCleared.length,
-    })
 })
 
 export const getUserMissionDetails = asyncHandler(async (req: Request, res: Response) => {
@@ -252,11 +156,20 @@ export const syncMissions = asyncHandler(async (req: Request, res: Response) => 
         await missionModel.resetWeeklyMissions()
     }
 
-    // 3) 進捗チェック＆クリア
+    // 3) 進捗チェック＆クリア判定（ポイント付与は行わない）
     const result = await missionModel.checkAndUpdateAllMissions(userId)
 
+    const message = `${result.checkedCount}件のミッションを同期しました。`
+    const details: string[] = []
+
+    if (result.newlyCleared.length > 0) {
+        details.push(`🎉 ${result.newlyCleared.length}個のミッションが新たにクリアされました！`)
+        details.push('報酬は翌日0時以降に「報酬受け取り」APIで受け取ることができます。')
+    }
+
     res.status(200).json({
-        message: `${result.checkedCount}件のミッションを同期しました。`,
+        message,
+        details,
         checkedCount: result.checkedCount,
         newlyCleared: result.newlyCleared,
         newlyClearedCount: result.newlyCleared.length,
@@ -268,27 +181,23 @@ export const claimAllRewards = asyncHandler(async (req: Request, res: Response) 
 
     // ユーザーの報酬状況を詳しく取得
     const rewardStatus = await missionModel.getRewardStatusSummary(user_id)
-    const claimableMissions = await missionModel.getUnclaimedRewards(user_id)
 
-    // メッセージを状況に応じて生成
-    let message = ''
-    const details: string[] = []
+    // 受け取り可能な報酬がない場合
+    if (rewardStatus.claimable === 0) {
+        let message = '受け取れる報酬はありません。'
+        const details: string[] = []
 
-    if (claimableMissions.length === 0) {
         if (rewardStatus.alreadyClaimed > 0) {
-            message = '受け取れる報酬はありません。'
             details.push(`${rewardStatus.alreadyClaimed}個の報酬は既に受け取り済みです。`)
         }
 
         if (rewardStatus.waitingForCooldown > 0) {
-            details.push(`${rewardStatus.waitingForCooldown}個の報酬は24時間のクールダウン中です。`)
+            details.push(`${rewardStatus.waitingForCooldown}個の報酬は翌日0時以降まで受け取れません。`)
         }
 
         if (rewardStatus.totalCleared === 0) {
             message = 'まだクリア済みのミッションがありません。'
             details.push('ミッションをクリアして報酬を獲得しましょう！')
-        } else if (message === '') {
-            message = '受け取れる報酬はありません。'
         }
 
         return res.status(200).json({
@@ -301,35 +210,45 @@ export const claimAllRewards = asyncHandler(async (req: Request, res: Response) 
     }
 
     // 報酬受け取り処理
-    let totalPoints = 0
-    for (const m of claimableMissions) {
-        totalPoints += Number(m.reward_content)
-        await missionModel.markRewardReceived(user_id, m.mission_id)
-    }
+    const claimResult = await missionModel.claimRewards(user_id)
 
-    await missionModel.addUserPoints(user_id, totalPoints)
+    // 本日受け取った日次ミッション報酬の総数を取得
+    const [todayDailyRewards] = (await db.query(
+        `SELECT COUNT(*) as count FROM MISSION_CLEARD mc
+         JOIN MISSION m ON mc.mission_id = m.mission_id
+         WHERE mc.user_id = ? 
+         AND m.mission_category = 'daily'
+         AND mc.clear_time >= '2099-01-01'
+         AND DATE(mc.clear_time) = DATE(CONVERT_TZ(NOW(), '+00:00', '+09:00'))`,
+        [user_id]
+    )) as [RowDataPacket[], unknown]
+
+    const totalDailyRewardsToday = Number(todayDailyRewards[0]?.count) || 0
 
     // 成功メッセージ
-    const successDetails: string[] = [`${claimableMissions.length}個の報酬を受け取りました！`]
+    const successDetails: string[] = [`${claimResult.claimedCount}個の報酬を受け取りました！`]
 
-    if (rewardStatus.alreadyClaimed > 0) {
-        successDetails.push(`これまでに${rewardStatus.alreadyClaimed}個の報酬を受け取り済みです。`)
+    // 日次ミッション報酬の総数を表示
+    if (totalDailyRewardsToday > 0) {
+        successDetails.push(`本日は${totalDailyRewardsToday}個の日次ミッション報酬を受け取りました！`)
     }
 
-    if (rewardStatus.waitingForCooldown > 0) {
-        successDetails.push(`あと${rewardStatus.waitingForCooldown}個の報酬が24時間後に受け取り可能になります。`)
+    // 更新された報酬状況を取得
+    const updatedRewardStatus = await missionModel.getRewardStatusSummary(user_id)
+
+    if (updatedRewardStatus.waitingForCooldown > 0) {
+        successDetails.push(
+            `あと${updatedRewardStatus.waitingForCooldown}個の報酬が翌日0時以降に受け取り可能になります。`
+        )
     }
 
     res.status(200).json({
-        message: `${totalPoints}ポイントを獲得しました！`,
+        message: `${claimResult.totalReward}ポイントを獲得しました！`,
         details: successDetails,
-        claimed: claimableMissions.length,
-        totalPoints,
-        rewardStatus: {
-            ...rewardStatus,
-            alreadyClaimed: rewardStatus.alreadyClaimed + claimableMissions.length,
-            claimable: 0,
-        },
+        claimed: claimResult.claimedCount,
+        totalPoints: claimResult.totalReward,
+        claimedMissions: claimResult.claimedMissions,
+        rewardStatus: updatedRewardStatus,
     })
 })
 
@@ -357,7 +276,7 @@ export const getRewardStatus = asyncHandler(async (req: Request, res: Response) 
         }
 
         if (rewardStatus.waitingForCooldown > 0) {
-            details.push(`⏰ ${rewardStatus.waitingForCooldown}個の報酬は24時間のクールダウン中です。`)
+            details.push(`⏰ ${rewardStatus.waitingForCooldown}個の報酬は翌日まで受け取れません。`)
         }
     }
 
