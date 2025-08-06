@@ -276,6 +276,22 @@ export const missionModel = {
 
     async markMissionCleared(user_id: string, mission_id: string): Promise<boolean> {
         try {
+            // 既にクリア済みかチェック
+            const [existingRows] = await db.query<RowDataPacket[]>(
+                'SELECT clear_status FROM MISSION_CLEARD WHERE user_id = ? AND mission_id = ?',
+                [user_id, mission_id]
+            )
+
+            if (existingRows.length === 0) {
+                console.error('Mission record not found:', { user_id, mission_id })
+                return false
+            }
+
+            if (existingRows[0].clear_status) {
+                console.log('Mission already cleared:', { user_id, mission_id })
+                return false // 既にクリア済み
+            }
+
             // MISSION_CLEARDテーブルの該当レコードを更新
             const [result] = await db.query<OkPacket>(
                 'UPDATE MISSION_CLEARD SET clear_status = true, clear_time = CONVERT_TZ(NOW(), "+00:00", "+09:00") WHERE user_id = ? AND mission_id = ?',

@@ -57,12 +57,19 @@ export const clearUserMission = asyncHandler(async (req: Request, res: Response)
     const user_id = (req.user as UserPayload)?.user_id // 認証されたユーザーから取得
     const { mission_id } = req.body
 
+    console.log('=== clearUserMission Debug ===')
+    console.log('user_id:', user_id)
+    console.log('mission_id:', mission_id)
+    console.log('req.body:', req.body)
+
     if (!user_id || !mission_id) {
         return res.status(400).json({ error: 'user_idとmission_idは必須です' })
     }
 
-    // markMissionClearedAndRewardを使用（重要：markMissionClearedではない）
-    const cleared = await missionModel.markMissionClearedAndReward(String(user_id), String(mission_id))
+    // 手動クリアの場合は進捗チェックをバイパスしてmarkMissionClearedを使用
+    const cleared = await missionModel.markMissionCleared(String(user_id), String(mission_id))
+
+    console.log('cleared result:', cleared)
 
     if (cleared) {
         res.status(200).json({
