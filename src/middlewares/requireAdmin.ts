@@ -1,33 +1,18 @@
-import { RequestHandler } from 'express'
-import jwt, { JwtPayload } from 'jsonwebtoken'
-import { AUTH_MESSAGES } from '~/constants/messages'
+import { NextFunction, Request, Response } from 'express'
+import { ENV } from '~/config/loadEnv'
+import { UserPayload } from '~/types/UserPayload'
+import { isAdmin } from '~/utils/admin'
 
-const JWT_SECRET = process.env.JWT_SECRET!
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+    const user = req.user as UserPayload | undefined
+    console.log('[requireAdmin] user:', user)
+    console.log('[requireAdmin] ADMIN_USER_IDS:', ENV.ADMIN_USER_IDS)
 
-interface AdminPayload extends JwtPayload {
-    user_id: string
-    user_name: string
-    role: string
-}
-
-export const requireAdmin: RequestHandler = (req, res, next) => {
-    const authHeader = req.headers.authorization
-    if (!authHeader?.startsWith('Bearer ')) {
-        res.status(401).json({ message: AUTH_MESSAGES.TOKEN_NOT_FOUND })
-        return
+    if (user?.user_id && isAdmin(user)) {
+        console.log('[requireAdmin] ✅ Access granted')
+        return next()
     }
 
-    try {
-        const token = authHeader.split(' ')[1]
-        const decoded = jwt.verify(token, JWT_SECRET) as AdminPayload
-
-        if (decoded.role !== 'admin') {
-            res.status(403).json({ message: AUTH_MESSAGES.NO_PERMISSION })
-            return
-        }
-
-        next()
-    } catch {
-        res.status(403).json({ message: AUTH_MESSAGES.SESSION_TOKEN_INVALID })
-    }
+    console.warn('[requireAdmin] ❌ Access denied. user:', user)
+    res.status(403).json({ message: 'この操作を行う権限がありません' })
 }

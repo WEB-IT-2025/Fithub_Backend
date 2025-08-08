@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck
 import express from 'express'
 import {
     deletePet,
@@ -22,6 +24,8 @@ import {
 } from '~/middlewares/validation/petValidation'
 
 const router = express.Router()
+
+// === 一般ユーザー向けAPI ===
 
 // ユーザーのプロフィール情報取得（ペット情報含む）
 router.get('/users/profile', requireCompleteUser, getUserProfile)
@@ -49,8 +53,10 @@ router.put(
     updateUserSubPet
 )
 
+// === 管理者向けAPI ===
+
 // ペット登録（管理者）
-router.post('/admin/pets', requireAdmin, validatePetRegistration, handleValidationErrors, registerPet)
+router.post('/admin/create', requireAdmin, validatePetRegistration, handleValidationErrors, registerPet)
 
 // ペット削除（管理者）
 router.delete('/admin/pets/:pet_id', requireAdmin, validatePetIdParam, handleValidationErrors, deletePet)
