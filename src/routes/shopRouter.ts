@@ -1,5 +1,6 @@
 import express from 'express'
 import { getPurchaseHistory, getShopItemDetail, getShopItems, purchaseItem } from '~/controllers/shopController'
+import { optionalAuth } from '~/middlewares/optionalAuth'
 import { requireCompleteUser } from '~/middlewares/requireCompleteUser'
 import { handleValidationErrors } from '~/middlewares/validation'
 
@@ -9,7 +10,7 @@ const router = express.Router()
 
 // ショップアイテム一覧取得（カテゴリフィルタ対応）
 // GET /shop/items?category=supplement
-router.get('/items', getShopItems)
+router.get('/items', optionalAuth, getShopItems)
 
 // 単一アイテム詳細取得
 // GET /shop/items/:id
