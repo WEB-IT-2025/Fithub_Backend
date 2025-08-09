@@ -38,53 +38,48 @@ CREATE TABLE USERS (
 
 CREATE TABLE ITEMS (
     item_id VARCHAR(64) PRIMARY KEY,
-    item_name VARCHAR(50) NOT NULL,
+    item_name VARCHAR(10) NOT NULL,
     item_point INT NOT NULL,
-    sold_count INT,
-    item_image_folder VARCHAR(255) NOT NULL,
+    item_image_url VARCHAR(255) NOT NULL,
     item_create_day TIMESTAMP NOT NULL,
-    item_delete_day TIMESTAMP NOT NULL,
     item_details VARCHAR(16) NOT NULL,
-    item_category VARCHAR(50) NOT NULL
+    item_category VARCHAR(10) NOT NULL CHECK (item_category IN ('PET','SKIN'))
 );
 
 CREATE TABLE PETS (
-    item_id VARCHAR(64) PRIMARY KEY, 
-    pet_name VARCHAR(20) NOT NULL,
-    pet_image_folder VARCHAR(255) NOT NULL,
-    pet_type VARCHAR(255) NOT NULL,
-    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE 
+    item_id  VARCHAR(64) PRIMARY KEY,
+    pet_type VARCHAR(50) NOT NULL,
+    CONSTRAINT fk_pets_items
+    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE
 );
 
 CREATE TABLE PURCHASES (
-purchase_id VARCHAR(64) PRIMARY KEY,
-user_id VARCHAR(64) NOT NULL,
-item_id VARCHAR(64) NOT NULL,
-quantity INT NOT NULL DEFAULT 1,
-purchase_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
-FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE
+    purchase_id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL,
+    item_id VARCHAR(64) NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    purchase_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE
 );
 
 CREATE TABLE USERS_PETS (
-    user_id VARCHAR(255) NOT NULL,
-    item_id VARCHAR(255) NOT NULL, 
-    user_main_pet BOOLEAN NOT NULL,
+    user_id VARCHAR(64) NOT NULL,
+    item_id VARCHAR(64) NOT NULL,
+    user_main_pet BOOLEAN ,
     user_pet_name VARCHAR(20) NOT NULL,
-    user_sub_pet BOOLEAN,
     pet_size INT NOT NULL,
-    pet_states INT NOT NULL,
+    pet_intimacy INT NOT NULL,
     PRIMARY KEY (user_id, item_id),
     FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES PETS(item_id) ON DELETE CASCADE
 );
 
 CREATE TABLE USERS_ITEMS (
-    user_id VARCHAR(255) NOT NULL,
-    item_id VARCHAR(255) NOT NULL,
+    user_id VARCHAR(64) NOT NULL,
+    item_id VARCHAR(64) NOT NULL,
     item_count INT NOT NULL,
-    category VARCHAR(255) NOT NULL,
-    usage_state BOOLEAN,
+    usage_intimacy BOOLEAN,
     PRIMARY KEY (user_id, item_id),
     FOREIGN KEY (user_id) REFERENCES USERS(user_id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES ITEMS(item_id) ON DELETE CASCADE
@@ -182,3 +177,4 @@ CREATE TABLE THRESHOLD (
 
 INSERT INTO THRESHOLD VALUES (1, 1, 1, 1);
 
+message.txt
