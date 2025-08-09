@@ -127,67 +127,6 @@ export const updateUserMainPet = asyncHandler(async (req: Request, res: Response
     }
 })
 
-// サブペット更新
-export const updateUserSubPet = asyncHandler(async (req: Request, res: Response) => {
-    const user_id = (req.user as UserPayload)?.user_id
-    const { pet_id, pet_name } = req.body
-
-    if (!user_id) {
-        return res.status(401).json({
-            success: false,
-            error: '認証が必要です',
-        })
-    }
-
-    // 必須パラメータの検証
-    if (!pet_id) {
-        return res.status(400).json({
-            success: false,
-            error: 'ペットIDは必須です',
-        })
-    }
-
-    if (!pet_name || typeof pet_name !== 'string' || pet_name.trim().length === 0) {
-        return res.status(400).json({
-            success: false,
-            error: 'ペット名は必須です',
-        })
-    }
-
-    try {
-        // ユーザーが所有しているペットの存在確認
-        const userPets = await petModel.getUserOwnedPets(user_id)
-        const petExists = userPets.some((pet: { item_id: string }) => pet.item_id === pet_id)
-
-        if (!petExists) {
-            return res.status(404).json({
-                success: false,
-                error: '指定されたペットを所有していません',
-            })
-        }
-
-        const success = await petModel.updateUserSubPet(user_id, pet_id, pet_name.trim())
-
-        if (success) {
-            res.status(200).json({
-                success: true,
-                message: 'サブペットを更新しました',
-            })
-        } else {
-            res.status(400).json({
-                success: false,
-                error: 'サブペットの更新に失敗しました',
-            })
-        }
-    } catch (error) {
-        console.error('Error updating sub pet:', error)
-        return res.status(500).json({
-            success: false,
-            error: 'サブペットの更新中にエラーが発生しました',
-        })
-    }
-})
-
 // ペットサイズ基準更新（管理者）
 export const updatePetSizeStandard = asyncHandler(async (req: Request, res: Response) => {
     const { pet_size_logic } = req.body

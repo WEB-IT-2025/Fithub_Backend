@@ -3,8 +3,8 @@ import db from '~/config/database'
 
 export interface Pet extends RowDataPacket {
     item_id: string
-    pet_name: string
-    pet_image_folder: string
+    item_name: string
+    item_image_url: string
     pet_type: string
     item_point: number
 }
@@ -16,23 +16,21 @@ export interface UserProfile extends RowDataPacket {
     main_pet_item_id: string | null
     main_pet_name: string | null
     main_pet_user_name: string | null
-    main_pet_image_folder: string | null
+    main_pet_image_url: string | null
     main_pet_type: string | null
     main_pet_size: number | null
-    main_pet_health: number | null
     main_pet_intimacy: number | null
 }
 
 export interface UserPetInfo extends RowDataPacket {
     item_id: string
-    pet_name: string
-    pet_image_folder: string
+    item_name: string
+    item_image_url: string
     pet_type: string
     user_main_pet: boolean
     user_pet_name: string
-    user_sub_pet: boolean | null
     pet_size: number
-    pet_states: number
+    pet_intimacy: number
 }
 
 export interface PetSizeStandardDTO {
@@ -53,17 +51,16 @@ export const petModel = {
                     u.user_name,
                     u.user_icon,
                     main_up.item_id as main_pet_item_id,
-                    main_p.pet_name as main_pet_name,
+                    main_i.item_name as main_pet_name,
                     main_up.user_pet_name as main_pet_user_name,
-                    main_p.pet_image_folder as main_pet_image_folder,
+                    main_i.item_image_url as main_pet_image_url,
                     main_p.pet_type as main_pet_type,
                     main_up.pet_size as main_pet_size,
-                    main_up.pet_states as main_pet_health,
-                    -- 親密度は pet_states の値をそのまま使用（または別の計算式を使用可能）
-                    main_up.pet_states as main_pet_intimacy
+                    main_up.pet_intimacy as main_pet_intimacy
                 FROM USERS u
                 LEFT JOIN USERS_PETS main_up ON u.user_id = main_up.user_id AND main_up.user_main_pet = TRUE
                 LEFT JOIN PETS main_p ON main_up.item_id = main_p.item_id
+                LEFT JOIN ITEMS main_i ON main_p.item_id = main_i.item_id
                 WHERE u.user_id = ?`,
                 [userId]
             )
@@ -80,18 +77,18 @@ export const petModel = {
             const [rows] = await db.query<UserPetInfo[]>(
                 `SELECT 
                     up.item_id,
-                    p.pet_name,
-                    p.pet_image_folder,
+                    i.item_name,
+                    i.item_image_url,
                     p.pet_type,
                     up.user_main_pet,
                     up.user_pet_name,
-                    up.user_sub_pet,
                     up.pet_size,
-                    up.pet_states
+                    up.pet_intimacy
                 FROM USERS_PETS up
                 JOIN PETS p ON up.item_id = p.item_id
+                JOIN ITEMS i ON p.item_id = i.item_id
                 WHERE up.user_id = ?
-                ORDER BY up.user_main_pet DESC, up.user_sub_pet DESC, p.pet_name`,
+                ORDER BY up.user_main_pet DESC, i.item_name`,
                 [userId]
             )
             return rows
@@ -118,26 +115,6 @@ export const petModel = {
             return result.affectedRows > 0
         } catch (error) {
             console.error('Error updating main pet:', error)
-            return false
-        }
-    },
-
-    // サブペット更新
-    async updateUserSubPet(userId: string, itemId: string, petName: string): Promise<boolean> {
-        try {
-            // まず現在のサブペットを解除
-            await db.query('UPDATE USERS_PETS SET user_sub_pet = NULL WHERE user_id = ? AND user_sub_pet = TRUE', [
-                userId,
-            ])
-
-            // 新しいサブペットを設定
-            const [result] = await db.query<OkPacket>(
-                'UPDATE USERS_PETS SET user_sub_pet = TRUE, user_pet_name = ? WHERE user_id = ? AND item_id = ?',
-                [petName, userId, itemId]
-            )
-            return result.affectedRows > 0
-        } catch (error) {
-            console.error('Error updating sub pet:', error)
             return false
         }
     },

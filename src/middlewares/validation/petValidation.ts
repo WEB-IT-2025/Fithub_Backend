@@ -17,23 +17,6 @@ export const updateMainPetValidation: ValidationChain[] = [
         .withMessage('ペット名は100文字以内で入力してください'),
 ]
 
-// サブペット更新のバリデーション
-export const updateSubPetValidation: ValidationChain[] = [
-    body('pet_id')
-        .notEmpty()
-        .withMessage('ペットIDは必須です')
-        .isString()
-        .withMessage('ペットIDは文字列で入力してください'),
-
-    body('pet_name')
-        .notEmpty()
-        .withMessage('ペット名は必須です')
-        .isString()
-        .withMessage('ペット名は文字列で入力してください')
-        .isLength({ max: 100 })
-        .withMessage('ペット名は100文字以内で入力してください'),
-]
-
 // ペットサイズ基準更新のバリデーション（管理者）
 export const updatePetSizeStandardValidation: ValidationChain[] = [
     body('pet_size_logic')

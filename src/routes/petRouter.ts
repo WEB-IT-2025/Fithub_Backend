@@ -5,7 +5,6 @@ import {
     updatePetHealthStandard,
     updatePetSizeStandard,
     updateUserMainPet,
-    updateUserSubPet,
 } from '~/controllers/petController'
 import { requireAdmin } from '~/middlewares/requireAdmin'
 import { requireCompleteUser } from '~/middlewares/requireCompleteUser'
@@ -14,7 +13,6 @@ import {
     updateMainPetValidation,
     updatePetHealthStandardValidation,
     updatePetSizeStandardValidation,
-    updateSubPetValidation,
 } from '~/middlewares/validation/petValidation'
 
 const router = express.Router()
@@ -29,9 +27,6 @@ router.get('/owned', requireCompleteUser, getUserPets)
 
 // 主ペット更新
 router.put('/main', requireCompleteUser, updateMainPetValidation, handleValidationErrors, updateUserMainPet)
-
-// サブペット更新
-router.put('/sub', requireCompleteUser, updateSubPetValidation, handleValidationErrors, updateUserSubPet)
 
 // === 管理者向けAPI ===
 
