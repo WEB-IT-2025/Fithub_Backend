@@ -176,5 +176,3 @@ CREATE TABLE THRESHOLD (
 -- ============================
 
 INSERT INTO THRESHOLD VALUES (1, 1, 1, 1);
-
-message.txt

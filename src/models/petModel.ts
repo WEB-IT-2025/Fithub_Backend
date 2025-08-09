@@ -33,14 +33,6 @@ export interface UserPetInfo extends RowDataPacket {
     pet_intimacy: number
 }
 
-export interface PetSizeStandardDTO {
-    pet_size_logic: number
-}
-
-export interface PetHealthStandardDTO {
-    pet_health_logic: number
-}
-
 export const petModel = {
     // ユーザーのプロフィール情報取得（メインペット情報のみ）
     async getUserProfile(userId: string): Promise<UserProfile | null> {
@@ -119,28 +111,77 @@ export const petModel = {
         }
     },
 
-    // ペットサイズ基準更新（管理者）
-    async updatePetSizeStandard(standards: PetSizeStandardDTO): Promise<boolean> {
+    // ペットの成長データ更新（サイズと親密度）
+    async updatePetGrowthData(userId: string, itemId: string, petSize: number, petIntimacy: number): Promise<boolean> {
         try {
-            const [result] = await db.query<OkPacket>('UPDATE THRESHOLD SET pet_size_logic = ?', [
-                standards.pet_size_logic,
-            ])
+            const [result] = await db.query<OkPacket>(
+                'UPDATE USERS_PETS SET pet_size = ?, pet_intimacy = ? WHERE user_id = ? AND item_id = ?',
+                [petSize, petIntimacy, userId, itemId]
+            )
             return result.affectedRows > 0
         } catch (error) {
-            console.error('Error updating pet size standards:', error)
+            console.error('Error updating pet growth data:', error)
             return false
         }
     },
 
-    // ペット健康度基準更新（管理者）
-    async updatePetHealthStandard(standards: PetHealthStandardDTO): Promise<boolean> {
+    // ペットを持つ全ユーザーのリストを取得
+    async getAllUsersWithPets(): Promise<{ user_id: string }[]> {
         try {
-            const [result] = await db.query<OkPacket>('UPDATE THRESHOLD SET pet_health_logic = ?', [
-                standards.pet_health_logic,
-            ])
-            return result.affectedRows > 0
+            const [rows] = await db.query<RowDataPacket[]>('SELECT DISTINCT user_id FROM USERS_PETS', [])
+            return rows as { user_id: string }[]
         } catch (error) {
-            console.error('Error updating pet health standards:', error)
+            console.error('Error fetching users with pets:', error)
+            throw error
+        }
+    },
+
+    // ペットの購入日を取得（親密度計算用）
+    async getPetPurchaseDate(userId: string, itemId: string): Promise<Date | null> {
+        try {
+            const [rows] = await db.query<RowDataPacket[]>(
+                `SELECT purchase_time 
+                 FROM PURCHASES 
+                 WHERE user_id = ? AND item_id = ? 
+                 ORDER BY purchase_time ASC 
+                 LIMIT 1`,
+                [userId, itemId]
+            )
+            return rows.length > 0 ? new Date(rows[0].purchase_time) : null
+        } catch (error) {
+            console.error('Error fetching pet purchase date:', error)
+            return null
+        }
+    },
+
+    // 親密度アイテムの使用回数を取得
+    async getIntimacyItemUsageCount(userId: string, itemId: string): Promise<number> {
+        try {
+            const [rows] = await db.query<RowDataPacket[]>(
+                `SELECT COALESCE(SUM(ui.item_count), 0) as total_usage
+                 FROM USERS_ITEMS ui
+                 JOIN ITEMS i ON ui.item_id = i.item_id
+                 WHERE ui.user_id = ? AND ui.usage_intimacy = TRUE
+                 AND EXISTS (SELECT 1 FROM USERS_PETS up WHERE up.user_id = ? AND up.item_id = ?)`,
+                [userId, userId, itemId]
+            )
+            return rows.length > 0 ? Number(rows[0].total_usage) : 0
+        } catch (error) {
+            console.error('Error fetching intimacy item usage count:', error)
+            return 0
+        }
+    },
+
+    // ペットがメインペットかどうかを確認
+    async isMainPet(userId: string, itemId: string): Promise<boolean> {
+        try {
+            const [rows] = await db.query<RowDataPacket[]>(
+                `SELECT user_main_pet FROM USERS_PETS WHERE user_id = ? AND item_id = ?`,
+                [userId, itemId]
+            )
+            return rows.length > 0 ? Boolean(rows[0].user_main_pet) : false
+        } catch (error) {
+            console.error('Error checking main pet status:', error)
             return false
         }
     },

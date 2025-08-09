@@ -2,10 +2,14 @@ import express from 'express'
 import {
     getUserPets,
     getUserProfile,
+    updateAllPetGrowth,
+    updatePetGrowth,
     updatePetHealthStandard,
     updatePetSizeStandard,
     updateUserMainPet,
+    useIntimacyItem,
 } from '~/controllers/petController'
+import { authenticateJWT } from '~/middlewares/authenticateJWT'
 import { requireAdmin } from '~/middlewares/requireAdmin'
 import { requireCompleteUser } from '~/middlewares/requireCompleteUser'
 import { handleValidationErrors } from '~/middlewares/validation'
@@ -28,7 +32,14 @@ router.get('/owned', requireCompleteUser, getUserPets)
 // 主ペット更新
 router.put('/main', requireCompleteUser, updateMainPetValidation, handleValidationErrors, updateUserMainPet)
 
+// ペット成長データ更新
+router.put('/growth', requireCompleteUser, updatePetGrowth)
+
+// 親密度アイテム使用
+router.post('/intimacy-item', requireCompleteUser, useIntimacyItem)
+
 // === 管理者向けAPI ===
+router.use(authenticateJWT)
 
 // ペットサイズ基準更新
 router.put(
@@ -47,5 +58,8 @@ router.put(
     handleValidationErrors,
     updatePetHealthStandard
 )
+
+// 全ユーザーペット成長データ更新
+router.put('/admin/growth-all', requireAdmin, updateAllPetGrowth)
 
 export default router
