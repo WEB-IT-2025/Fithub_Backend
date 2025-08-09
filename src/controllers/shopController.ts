@@ -74,6 +74,7 @@ export const purchaseItem = asyncHandler(async (req: Request, res: Response) => 
         res.status(200).json({
             success: true,
             message: result.message,
+            item_id: result.item_id,
         })
     } else {
         res.status(400).json({

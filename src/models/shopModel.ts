@@ -87,7 +87,10 @@ export const shopModel = {
     },
 
     // アイテム購入
-    purchaseItem: async (userId: string, itemId: string): Promise<{ success: boolean; message: string }> => {
+    purchaseItem: async (
+        userId: string,
+        itemId: string
+    ): Promise<{ success: boolean; message: string; item_id?: string }> => {
         try {
             // アイテムが存在するかチェック
             const item = await shopModel.getItemById(itemId)
@@ -125,11 +128,30 @@ export const shopModel = {
 
                 // カテゴリに応じてユーザーの所有アイテムに追加
                 if (item.item_category === 'PET') {
-                    // PETカテゴリの場合：USERS_PETSテーブルに追加
+                    // PETカテゴリの場合：既にそのペットを持っているかチェック
+                    const [existingPet] = await db.query<RowDataPacket[]>(
+                        'SELECT COUNT(*) as count FROM USERS_PETS WHERE user_id = ? AND item_id = ?',
+                        [userId, itemId]
+                    )
+
+                    if (existingPet[0].count > 0) {
+                        await db.query('ROLLBACK')
+                        return { success: false, message: '既にそのペットを所有しています' }
+                    }
+
+                    // 全ペット数チェック（初回ペット判定用）
+                    const [allPets] = await db.query<RowDataPacket[]>(
+                        'SELECT COUNT(*) as pet_count FROM USERS_PETS WHERE user_id = ?',
+                        [userId]
+                    )
+
+                    const isFirstPet = allPets[0].pet_count === 0
+
+                    // USERS_PETSテーブルに追加
                     await db.query(
                         `INSERT INTO USERS_PETS (user_id, item_id, user_main_pet, user_pet_name, pet_size, pet_intimacy) 
                          VALUES (?, ?, ?, ?, ?, ?)`,
-                        [userId, itemId, false, item.item_name, 1, 0]
+                        [userId, itemId, isFirstPet, item.item_name, 1, 0]
                     )
                 } else {
                     // その他のカテゴリ（SKIN等）：USERS_ITEMSテーブルに追加
@@ -155,7 +177,7 @@ export const shopModel = {
                 }
 
                 await db.query('COMMIT')
-                return { success: true, message: '購入が完了しました' }
+                return { success: true, message: '購入が完了しました', item_id: itemId }
             } catch (error) {
                 await db.query('ROLLBACK')
                 console.error('購入処理エラー:', error)
