@@ -2,7 +2,7 @@ import { ValidationChain, body } from 'express-validator'
 
 // 主ペット更新のバリデーション
 export const updateMainPetValidation: ValidationChain[] = [
-    body('pet_id')
+    body('item_id')
         .notEmpty()
         .withMessage('ペットIDは必須です')
         .isString()

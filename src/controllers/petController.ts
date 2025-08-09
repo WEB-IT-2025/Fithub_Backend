@@ -69,7 +69,11 @@ export const getUserPets = asyncHandler(async (req: Request, res: Response) => {
 // 主ペット更新
 export const updateUserMainPet = asyncHandler(async (req: Request, res: Response) => {
     const user_id = (req.user as UserPayload)?.user_id
-    const { pet_id, pet_name } = req.body
+    const { item_id, pet_name } = req.body
+
+    // デバッグ用ログ
+    console.log('Request body:', req.body)
+    console.log('pet_name:', pet_name, 'type:', typeof pet_name)
 
     if (!user_id) {
         return res.status(401).json({
@@ -79,7 +83,7 @@ export const updateUserMainPet = asyncHandler(async (req: Request, res: Response
     }
 
     // 必須パラメータの検証
-    if (!pet_id) {
+    if (!item_id) {
         return res.status(400).json({
             success: false,
             error: 'ペットIDは必須です',
@@ -96,7 +100,7 @@ export const updateUserMainPet = asyncHandler(async (req: Request, res: Response
     try {
         // ユーザーが所有しているペットの存在確認
         const userPets = await petModel.getUserOwnedPets(user_id)
-        const petExists = userPets.some((pet: { item_id: string }) => pet.item_id === pet_id)
+        const petExists = userPets.some((pet: { item_id: string }) => pet.item_id === item_id)
 
         if (!petExists) {
             return res.status(404).json({
@@ -105,7 +109,7 @@ export const updateUserMainPet = asyncHandler(async (req: Request, res: Response
             })
         }
 
-        const success = await petModel.updateUserMainPet(user_id, pet_id, pet_name.trim())
+        const success = await petModel.updateUserMainPet(user_id, item_id, pet_name.trim())
 
         if (success) {
             res.status(200).json({
