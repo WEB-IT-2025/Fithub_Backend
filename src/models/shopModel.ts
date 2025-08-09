@@ -11,6 +11,7 @@ export interface ShopItem extends RowDataPacket {
     item_details: string
     item_category: string
     pet_type?: string // PETSテーブルからのデータ（PETカテゴリのみ）
+    is_owned?: boolean // ユーザーが所有しているかどうか（認証時のみ）
 }
 
 // 購入履歴の型定義（DBテーブル構造に合わせて修正）
@@ -42,6 +43,63 @@ export const shopModel = {
             ORDER BY i.item_create_day DESC
         `
         const [rows] = await db.query<ShopItem[]>(query)
+        return rows
+    },
+
+    // 全ショップアイテム取得（認証ユーザー用 - 所有状況付き）
+    getAllItemsWithOwnership: async (userId: string): Promise<ShopItem[]> => {
+        const query = `
+            SELECT 
+                i.item_id,
+                i.item_name,
+                i.item_point,
+                i.item_image_url,
+                i.item_create_day,
+                i.item_details,
+                i.item_category,
+                p.pet_type,
+                CASE 
+                    WHEN i.item_category = 'PET' THEN 
+                        CASE WHEN up.user_id IS NOT NULL THEN TRUE ELSE FALSE END
+                    ELSE 
+                        CASE WHEN ui.user_id IS NOT NULL THEN TRUE ELSE FALSE END
+                END as is_owned
+            FROM ITEMS i
+            LEFT JOIN PETS p ON i.item_id = p.item_id
+            LEFT JOIN USERS_PETS up ON i.item_id = up.item_id AND up.user_id = ?
+            LEFT JOIN USERS_ITEMS ui ON i.item_id = ui.item_id AND ui.user_id = ?
+            ORDER BY i.item_create_day DESC
+        `
+        const [rows] = await db.query<ShopItem[]>(query, [userId, userId])
+        return rows
+    },
+
+    // カテゴリ別アイテム取得（認証ユーザー用 - 所有状況付き）
+    getItemsByCategoryWithOwnership: async (category: string, userId: string): Promise<ShopItem[]> => {
+        const query = `
+            SELECT 
+                i.item_id,
+                i.item_name,
+                i.item_point,
+                i.item_image_url,
+                i.item_create_day,
+                i.item_details,
+                i.item_category,
+                p.pet_type,
+                CASE 
+                    WHEN i.item_category = 'PET' THEN 
+                        CASE WHEN up.user_id IS NOT NULL THEN TRUE ELSE FALSE END
+                    ELSE 
+                        CASE WHEN ui.user_id IS NOT NULL THEN TRUE ELSE FALSE END
+                END as is_owned
+            FROM ITEMS i
+            LEFT JOIN PETS p ON i.item_id = p.item_id
+            LEFT JOIN USERS_PETS up ON i.item_id = up.item_id AND up.user_id = ?
+            LEFT JOIN USERS_ITEMS ui ON i.item_id = ui.item_id AND ui.user_id = ?
+            WHERE i.item_category = ?
+            ORDER BY i.item_create_day DESC
+        `
+        const [rows] = await db.query<ShopItem[]>(query, [userId, userId, category])
         return rows
     },
 
@@ -87,10 +145,7 @@ export const shopModel = {
     },
 
     // アイテム購入
-    purchaseItem: async (
-        userId: string,
-        itemId: string
-    ): Promise<{ success: boolean; message: string; item_id?: string }> => {
+    purchaseItem: async (userId: string, itemId: string): Promise<{ success: boolean; message: string }> => {
         try {
             // アイテムが存在するかチェック
             const item = await shopModel.getItemById(itemId)
@@ -128,30 +183,22 @@ export const shopModel = {
 
                 // カテゴリに応じてユーザーの所有アイテムに追加
                 if (item.item_category === 'PET') {
-                    // PETカテゴリの場合：既にそのペットを持っているかチェック
-                    const [existingPet] = await db.query<RowDataPacket[]>(
-                        'SELECT COUNT(*) as count FROM USERS_PETS WHERE user_id = ? AND item_id = ?',
+                    // PETカテゴリの場合：重複チェック
+                    const [existingPets] = await db.query<RowDataPacket[]>(
+                        'SELECT user_id FROM USERS_PETS WHERE user_id = ? AND item_id = ?',
                         [userId, itemId]
                     )
 
-                    if (existingPet[0].count > 0) {
+                    if (existingPets.length > 0) {
                         await db.query('ROLLBACK')
-                        return { success: false, message: '既にそのペットを所有しています' }
+                        return { success: false, message: 'すでに購入しています' }
                     }
-
-                    // 全ペット数チェック（初回ペット判定用）
-                    const [allPets] = await db.query<RowDataPacket[]>(
-                        'SELECT COUNT(*) as pet_count FROM USERS_PETS WHERE user_id = ?',
-                        [userId]
-                    )
-
-                    const isFirstPet = allPets[0].pet_count === 0
 
                     // USERS_PETSテーブルに追加
                     await db.query(
                         `INSERT INTO USERS_PETS (user_id, item_id, user_main_pet, user_pet_name, pet_size, pet_intimacy) 
                          VALUES (?, ?, ?, ?, ?, ?)`,
-                        [userId, itemId, isFirstPet, item.item_name, 1, 0]
+                        [userId, itemId, false, item.item_name, 1, 0]
                     )
                 } else {
                     // その他のカテゴリ（SKIN等）：USERS_ITEMSテーブルに追加
@@ -177,7 +224,7 @@ export const shopModel = {
                 }
 
                 await db.query('COMMIT')
-                return { success: true, message: '購入が完了しました', item_id: itemId }
+                return { success: true, message: '購入が完了しました' }
             } catch (error) {
                 await db.query('ROLLBACK')
                 console.error('購入処理エラー:', error)

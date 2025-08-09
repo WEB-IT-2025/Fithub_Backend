@@ -5,12 +5,31 @@ import { shopModel } from '~/models/shopModel'
 // ショップアイテム一覧取得
 export const getShopItems = asyncHandler(async (req: Request, res: Response) => {
     const { category } = req.query
+    const user = req.user as { user_id: string; user_name: string } | undefined
+    const userId = user?.user_id
 
     let items
-    if (category && typeof category === 'string') {
-        items = await shopModel.getItemsByCategory(category)
+    if (userId) {
+        // 認証ユーザーの場合：所有状況付きで取得
+        if (category && typeof category === 'string') {
+            items = await shopModel.getItemsByCategoryWithOwnership(category, userId)
+        } else {
+            items = await shopModel.getAllItemsWithOwnership(userId)
+        }
+
+        // is_ownedをownedに変換
+        items = items.map((item) => ({
+            ...item,
+            owned: Boolean(item.is_owned),
+            is_owned: undefined, // 元のフィールドを削除
+        }))
     } else {
-        items = await shopModel.getAllItems()
+        // 非認証ユーザーの場合：通常の取得
+        if (category && typeof category === 'string') {
+            items = await shopModel.getItemsByCategory(category)
+        } else {
+            items = await shopModel.getAllItems()
+        }
     }
 
     res.status(200).json({
@@ -74,7 +93,6 @@ export const purchaseItem = asyncHandler(async (req: Request, res: Response) => 
         res.status(200).json({
             success: true,
             message: result.message,
-            item_id: result.item_id,
         })
     } else {
         res.status(400).json({
