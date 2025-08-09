@@ -12,6 +12,7 @@ const poolOptions: PoolOptions = {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
+    timezone: '+09:00', // 日本時間（JST）を設定
 }
 
 // Create a connection pool
