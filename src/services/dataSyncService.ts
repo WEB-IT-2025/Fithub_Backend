@@ -1,5 +1,6 @@
 // src/services/dataSyncService.ts
 import db from '~/config/database'
+import { missionModel } from '~/models/missionModel'
 import { userModel } from '~/models/userModel'
 
 import { githubOAuthService } from './githubOAuthService'
@@ -118,6 +119,16 @@ export const dataSyncService = {
             this.syncUserContributionData(userId),
         ])
 
+        // データ同期後にミッション進捗を自動チェック
+        try {
+            const missionResult = await missionModel.checkAndUpdateAllMissions(userId)
+            if (missionResult.newlyCleared.length > 0) {
+                console.log(`🎯 [SYNC] User ${userId} cleared missions: ${missionResult.newlyCleared.join(', ')}`)
+            }
+        } catch (error) {
+            console.error(`❌ [SYNC] Mission check failed for user ${userId}:`, error)
+        }
+
         return { exercise, contribution }
     },
 
@@ -194,8 +205,55 @@ export const dataSyncService = {
             console.log(
                 `✅ [SYNC] Daily records created: ${createdExercise} exercise, ${createdContribution} contribution`
             )
+
+            // 日次記録作成後に包括的なミッション管理を実行
+            await this.performDailyMissionMaintenance()
         } catch (error) {
             console.error('❌ [SYNC] Failed to create daily records:', error)
+        }
+    },
+
+    // 日次ミッション管理（リセット＋全ユーザーの進捗チェック）
+    async performDailyMissionMaintenance(): Promise<void> {
+        try {
+            console.log('🎯 [MISSION] Starting daily mission maintenance...')
+
+            // 1. デイリーミッションリセット
+            await missionModel.resetDailyMissions()
+            console.log('✅ [MISSION] Daily missions reset completed')
+
+            // 2. 月曜日の場合はウィークリーミッションもリセット
+            const today = new Date()
+            if (today.getDay() === 1) {
+                // 月曜日
+                await missionModel.resetWeeklyMissions()
+                console.log('✅ [MISSION] Weekly missions reset completed')
+            }
+
+            // 3. 全ユーザーのミッション進捗を一括チェック
+            const users = await this.getActiveUsers()
+            let totalChecked = 0
+            let totalCleared = 0
+
+            for (const user of users) {
+                try {
+                    const result = await missionModel.checkAndUpdateAllMissions(user.user_id)
+                    totalChecked += result.checkedCount
+                    totalCleared += result.newlyCleared.length
+
+                    if (result.newlyCleared.length > 0) {
+                        console.log(`🎯 [MISSION] User ${user.user_id} cleared: ${result.newlyCleared.join(', ')}`)
+                    }
+                } catch (error) {
+                    console.error(`❌ [MISSION] Failed to check missions for user ${user.user_id}:`, error)
+                }
+            }
+
+            console.log(
+                `✅ [MISSION] Daily maintenance completed: ${totalChecked} checked, ${totalCleared} newly cleared`
+            )
+        } catch (error) {
+            console.error('❌ [MISSION] Daily mission maintenance failed:', error)
         }
     },
 

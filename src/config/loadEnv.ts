@@ -1,3 +1,4 @@
+// config/loadEnv.ts
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -28,4 +29,9 @@ export const ENV = {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
     GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/google/callback',
+
+    // ✅ Admin user IDs
+    ADMIN_USER_IDS: (process.env.ADMIN_USER_IDS || '').split(','),
 }
+// loadEnv.ts
+console.log('[ENV] ADMIN_USER_IDS:', ENV.ADMIN_USER_IDS)

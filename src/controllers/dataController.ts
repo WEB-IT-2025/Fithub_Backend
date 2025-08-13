@@ -6,11 +6,13 @@ import { AuthenticatedRequest } from '~/middlewares/authMiddleware'
 import { dataSyncService } from '~/services/dataSyncService'
 
 // GET /api/data/user - Get user's exercise and contribution data
-export const getUserData = async (req: Request, res: Response) => {
+export const getUserData = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const authReq = req as AuthenticatedRequest
         const userId = authReq.user?.user_id
+        console.log('🧾 [getUserData] req.user:', req.user)
         if (!userId) {
+            console.warn('⚠️ [getUserData] No user_id found in req.user')
             return res.status(401).json({
                 success: false,
                 message: 'User not authenticated',

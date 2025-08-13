@@ -28,6 +28,7 @@ export interface CompleteUser {
     user_icon: string
     email?: string
     point: number
+    google_user_id: string
     google_access_token: string | null
     google_refresh_token: string | null
     google_token_expires_at: Date | null
@@ -44,6 +45,7 @@ interface UserRow extends RowDataPacket {
     user_icon: string
     email?: string
     point: number
+    google_user_id: string
     google_access_token: string | null
     google_refresh_token: string | null
     google_token_expires_at: Date | null

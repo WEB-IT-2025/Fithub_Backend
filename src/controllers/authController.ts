@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { Request, Response } from 'express'
 import { API_MESSAGES, AUTH_MESSAGES } from '~/constants/messages'
 import { asyncHandler } from '~/middlewares/asyncHandler'
+import { missionModel } from '~/models/missionModel'
 import { userModel } from '~/models/userModel'
 import { authTokenService } from '~/services/authTokenService'
 import { dataSyncService } from '~/services/dataSyncService'
@@ -395,6 +396,8 @@ export const githubOAuthCallback = asyncHandler(async (req: Request, res: Respon
                 github_username: githubUserInfo.login,
             },
         })
+
+        await missionModel.initializeUserMissions(newUserId)
 
         const fullSessionToken = authTokenService.generateFullSessionToken(
             newUserId,
