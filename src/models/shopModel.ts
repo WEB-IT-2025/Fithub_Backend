@@ -255,4 +255,11 @@ export const shopModel = {
         const [rows] = await db.query<PurchaseHistory[]>(query, [userId])
         return rows
     },
+
+    // ユーザーのポイント取得
+    getUserPoint: async (userId: string): Promise<number | null> => {
+        const query = 'SELECT point FROM USERS WHERE user_id = ?'
+        const [rows] = await db.query<RowDataPacket[]>(query, [userId])
+        return rows.length > 0 ? (rows[0].point as number) : null
+    },
 }

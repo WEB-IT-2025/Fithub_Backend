@@ -1,7 +1,12 @@
 import express from 'express'
-import { getPurchaseHistory, getShopItemDetail, getShopItems, purchaseItem } from '~/controllers/shopController'
+import {
+    getPurchaseHistory,
+    getShopItemDetail,
+    getShopItems,
+    getUserPoint,
+    purchaseItem,
+} from '~/controllers/shopController'
 import { optionalAuth } from '~/middlewares/optionalAuth'
-import { requireCompleteUser } from '~/middlewares/requireCompleteUser'
 import { handleValidationErrors } from '~/middlewares/validation'
 
 const router = express.Router()
@@ -18,10 +23,14 @@ router.get('/items/:id', getShopItemDetail)
 
 // アイテム購入（認証必要）
 // POST /shop/purchases
-router.post('/purchases', requireCompleteUser, handleValidationErrors, purchaseItem)
+router.post('/purchases', optionalAuth, handleValidationErrors, purchaseItem)
 
 // 購入履歴取得（認証必要）
 // GET /shop/history
-router.get('/history', requireCompleteUser, handleValidationErrors, getPurchaseHistory)
+router.get('/history', optionalAuth, handleValidationErrors, getPurchaseHistory)
+
+// ユーザーポイント取得（認証必要）
+// GET /shop/point
+router.get('/point', optionalAuth, handleValidationErrors, getUserPoint)
 
 export default router

@@ -122,3 +122,33 @@ export const getPurchaseHistory = asyncHandler(async (req: Request, res: Respons
         data: history,
     })
 })
+
+// ユーザーポイント取得
+export const getUserPoint = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user as { user_id: string; user_name: string } | undefined
+    const userId = user?.user_id
+
+    if (!userId) {
+        return res.status(401).json({
+            success: false,
+            message: 'ユーザー認証が必要です',
+        })
+    }
+
+    const point = await shopModel.getUserPoint(userId)
+
+    if (point === null) {
+        return res.status(404).json({
+            success: false,
+            message: 'ユーザーが見つかりません',
+        })
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'ポイント取得成功',
+        data: {
+            point: point,
+        },
+    })
+})
