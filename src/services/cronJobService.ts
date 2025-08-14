@@ -10,6 +10,7 @@ export const cronJobService = {
     // Start all cron jobs
     startAllJobs(): void {
         this.startDataSyncJob()
+        this.startHourlySyncJob()
         this.startDailyRecordCreationJob()
         this.startTokenRefreshJob()
         console.log('🕐 [CRON] All cron jobs started successfully')
@@ -31,6 +32,24 @@ export const cronJobService = {
         )
 
         console.log('🕐 [CRON] Data sync job started (every 15 minutes)')
+    },
+
+    // Sync 2-hourly exercise data every 2 hours
+    startHourlySyncJob(): void {
+        // Run every 2 hours at 5 minutes past even hours (0:05, 2:05, 4:05, etc.)
+        cron.schedule(
+            '5 */2 * * *',
+            async () => {
+                console.log('📊 [CRON] Starting 2-hourly exercise data sync...')
+                await dataSyncService.syncAllUsersHourlyData()
+            },
+            {
+                scheduled: true,
+                timezone: 'Asia/Tokyo',
+            }
+        )
+
+        console.log('🕐 [CRON] 2-hourly exercise sync job started (every 2 hours)')
     },
 
     // Create daily records at midnight

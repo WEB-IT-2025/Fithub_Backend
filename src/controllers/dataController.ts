@@ -189,3 +189,188 @@ export const syncUserDataManually = async (req: Request, res: Response) => {
         })
     }
 }
+
+// GET /api/data/hourly - Get user's hourly exercise data for today
+export const getUserHourlyData = async (req: Request, res: Response) => {
+    try {
+        const authReq = req as AuthenticatedRequest
+        const userId = authReq.user?.user_id
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated',
+            })
+        }
+
+        // Get today's hourly data from database
+        const hourlyData = await dataSyncService.getTodayHourlyStepsFromDatabase(userId)
+
+        // Calculate cumulative steps for charting with user-friendly time format
+        let cumulativeSteps = 0
+        const chartData = hourlyData.map((data) => {
+            cumulativeSteps += data.steps
+            const hour = new Date(data.timestamp).getHours()
+            return {
+                time: `${hour.toString().padStart(2, '0')}:00`, // User-friendly format (00:00, 01:00, etc.)
+                timeValue: hour, // Numeric value for chart libraries
+                steps: data.steps,
+                totalSteps: cumulativeSteps,
+                timestamp: data.timestamp,
+            }
+        })
+
+        const response = {
+            success: true,
+            data: {
+                user_id: userId,
+                date: dataSyncService.getTodayDate(),
+                hourly_data: chartData,
+                total_steps: cumulativeSteps,
+                data_points: hourlyData.length,
+                time_range:
+                    '2-hour intervals: 00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00',
+                last_updated: new Date().toISOString(),
+            },
+        }
+
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [DATA] Failed to get hourly data:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve hourly data',
+        })
+    }
+}
+
+// POST /api/data/sync/hourly - Manual sync hourly data for current user
+export const syncUserHourlyDataManually = async (req: Request, res: Response) => {
+    try {
+        const authReq = req as AuthenticatedRequest
+        const userId = authReq.user?.user_id
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated',
+            })
+        }
+
+        console.log(`📊 [HOURLY] Manual hourly sync requested for user: ${userId}`)
+
+        // Sync user's hourly data
+        const syncResult = await dataSyncService.syncUserHourlyExerciseData(userId)
+
+        const response = {
+            success: true,
+            message: 'Hourly data synced successfully',
+            data: {
+                user_id: userId,
+                synced_at: new Date().toISOString(),
+                hourly_entries: syncResult.length,
+                synced_data: syncResult,
+            },
+        }
+
+        console.log(`✅ [HOURLY] Manual hourly sync completed for user: ${userId}`)
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [HOURLY] Manual hourly sync failed:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to sync hourly data',
+            error: error instanceof Error ? error.message : 'Unknown error',
+        })
+    }
+}
+
+// DELETE /api/data/cleanup - Clear all hourly data (admin only)
+export const clearAllHourlyData = async (req: Request, res: Response) => {
+    try {
+        console.log('🧹 [ADMIN] Clear all hourly data requested')
+
+        // Clear all hourly data
+        await dataSyncService.clearAllHourlyData()
+
+        const response = {
+            success: true,
+            message: 'All hourly data cleared successfully',
+            cleared_at: new Date().toISOString(),
+        }
+
+        console.log('✅ [ADMIN] All hourly data cleared')
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [ADMIN] Failed to clear all hourly data:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to clear hourly data',
+            error: error instanceof Error ? error.message : 'Unknown error',
+        })
+    }
+}
+
+// DELETE /api/data/cleanup/user/:userId - Clear specific user's hourly data (admin only)
+export const clearUserHourlyData = async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: 'User ID is required',
+            })
+        }
+
+        console.log(`🧹 [ADMIN] Clear hourly data requested for user: ${userId}`)
+
+        // Clear specific user's hourly data
+        await dataSyncService.clearUserHourlyData(userId)
+
+        const response = {
+            success: true,
+            message: `Hourly data cleared for user ${userId}`,
+            user_id: userId,
+            cleared_at: new Date().toISOString(),
+        }
+
+        console.log(`✅ [ADMIN] Hourly data cleared for user: ${userId}`)
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [ADMIN] Failed to clear user hourly data:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to clear user hourly data',
+            error: error instanceof Error ? error.message : 'Unknown error',
+        })
+    }
+}
+
+// DELETE /api/data/cleanup/outdated - Clear outdated hourly data (admin only)
+export const clearOutdatedHourlyData = async (req: Request, res: Response) => {
+    try {
+        const { days } = req.query
+        const daysToKeep = days ? parseInt(days as string) : 1
+
+        console.log(`🧹 [ADMIN] Clear outdated hourly data requested (keep ${daysToKeep} days)`)
+
+        // Clear outdated hourly data
+        await dataSyncService.clearOutdatedHourlyData(daysToKeep)
+
+        const response = {
+            success: true,
+            message: `Outdated hourly data cleared (kept ${daysToKeep} days)`,
+            days_kept: daysToKeep,
+            cleared_at: new Date().toISOString(),
+        }
+
+        console.log(`✅ [ADMIN] Outdated hourly data cleared (kept ${daysToKeep} days)`)
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [ADMIN] Failed to clear outdated hourly data:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to clear outdated hourly data',
+            error: error instanceof Error ? error.message : 'Unknown error',
+        })
+    }
+}

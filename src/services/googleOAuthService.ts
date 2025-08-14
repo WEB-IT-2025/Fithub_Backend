@@ -244,6 +244,182 @@ export const googleOAuthService = {
         }
     },
 
+    // Get user's steps for today with hourly intervals (for daily tracking)
+    async getUserStepsTodayByHours(accessToken: string): Promise<{ timestamp: string; steps: number }[]> {
+        try {
+            // Get start and end time for today in Japan timezone
+            const now = new Date()
+            const japanDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })
+
+            // Create Japan timezone start of day (00:00:00 JST)
+            const todayJapan = new Date(japanDateStr + 'T00:00:00')
+            const startTime = todayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
+
+            // Create Japan timezone end of day (23:59:59 JST)
+            const endOfTodayJapan = new Date(japanDateStr + 'T23:59:59')
+            const endTime = endOfTodayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
+
+            const response = await axios.post(
+                'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',
+                {
+                    aggregateBy: [
+                        {
+                            dataTypeName: 'com.google.step_count.delta',
+                            dataSourceId: 'derived:com.google.step_count.delta:com.google.android.gms:estimated_steps',
+                        },
+                    ],
+                    bucketByTime: { durationMillis: 2 * 60 * 60 * 1000 }, // 2 hour buckets as requested
+                    startTimeMillis: startTime,
+                    endTimeMillis: endTime,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            )
+
+            const fitnessData = response.data
+            const hourlyData: { timestamp: string; steps: number }[] = []
+
+            // Create a map for 2-hour intervals (0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22)
+            const hourlyStepsMap = new Map<number, number>()
+            for (let hour = 0; hour <= 22; hour += 2) {
+                hourlyStepsMap.set(hour, 0)
+            }
+
+            if (fitnessData.bucket && fitnessData.bucket.length > 0) {
+                for (const bucket of fitnessData.bucket) {
+                    const bucketDate = new Date(parseInt(bucket.startTimeMillis))
+                    let bucketSteps = 0
+
+                    if (bucket.dataset && bucket.dataset.length > 0) {
+                        for (const dataset of bucket.dataset) {
+                            if (dataset.point && dataset.point.length > 0) {
+                                for (const point of dataset.point) {
+                                    if (point.value && point.value.length > 0) {
+                                        bucketSteps += point.value[0].intVal || 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Convert back to Japan timezone
+                    const japanTime = new Date(bucketDate.getTime() + 9 * 60 * 60 * 1000)
+                    const hour = japanTime.getHours()
+
+                    // Only include data for the current day in Japan timezone
+                    const bucketDateStr = japanTime.toLocaleDateString('en-CA')
+                    if (bucketDateStr === japanDateStr) {
+                        // Map to nearest 2-hour interval
+                        const twoHourInterval = Math.floor(hour / 2) * 2
+                        if (twoHourInterval <= 22) {
+                            hourlyStepsMap.set(
+                                twoHourInterval,
+                                (hourlyStepsMap.get(twoHourInterval) || 0) + bucketSteps
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Generate 2-hour interval data for 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22 hours
+            for (let hour = 0; hour <= 22; hour += 2) {
+                const steps = hourlyStepsMap.get(hour) || 0
+                const timeString = `${hour.toString().padStart(2, '0')}:00`
+
+                hourlyData.push({
+                    timestamp: `${japanDateStr} ${timeString}:00`,
+                    steps: steps,
+                })
+            }
+
+            return hourlyData
+        } catch (error) {
+            console.error('Failed to get user steps by hours:', error)
+            return []
+        }
+    },
+
+    // Get user's detailed steps data with finer granularity (30-minute intervals)
+    async getUserDetailedStepsToday(accessToken: string): Promise<{ timestamp: string; steps: number }[]> {
+        try {
+            // Get start and end time for today in Japan timezone
+            const now = new Date()
+            const japanDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })
+
+            // Create Japan timezone start of day (00:00:00 JST)
+            const todayJapan = new Date(japanDateStr + 'T00:00:00')
+            const startTime = todayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
+
+            // Create Japan timezone end of day (23:59:59 JST)
+            const endOfTodayJapan = new Date(japanDateStr + 'T23:59:59')
+            const endTime = endOfTodayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
+
+            const response = await axios.post(
+                'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',
+                {
+                    aggregateBy: [
+                        {
+                            dataTypeName: 'com.google.step_count.delta',
+                            dataSourceId: 'derived:com.google.step_count.delta:com.google.android.gms:estimated_steps',
+                        },
+                    ],
+                    bucketByTime: { durationMillis: 30 * 60 * 1000 }, // 30 minute buckets for detailed data
+                    startTimeMillis: startTime,
+                    endTimeMillis: endTime,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            )
+
+            const fitnessData = response.data
+            const detailedData: { timestamp: string; steps: number }[] = []
+
+            if (fitnessData.bucket && fitnessData.bucket.length > 0) {
+                for (const bucket of fitnessData.bucket) {
+                    const bucketDate = new Date(parseInt(bucket.startTimeMillis))
+                    let bucketSteps = 0
+
+                    if (bucket.dataset && bucket.dataset.length > 0) {
+                        for (const dataset of bucket.dataset) {
+                            if (dataset.point && dataset.point.length > 0) {
+                                for (const point of dataset.point) {
+                                    if (point.value && point.value.length > 0) {
+                                        bucketSteps += point.value[0].intVal || 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Convert back to Japan timezone
+                    const japanTime = new Date(bucketDate.getTime() + 9 * 60 * 60 * 1000)
+
+                    // Only include data for the current day in Japan timezone
+                    const bucketDateStr = japanTime.toLocaleDateString('en-CA')
+                    if (bucketDateStr === japanDateStr && bucketSteps > 0) {
+                        detailedData.push({
+                            timestamp: japanTime.toISOString().replace('T', ' ').substring(0, 19),
+                            steps: bucketSteps,
+                        })
+                    }
+                }
+            }
+
+            return detailedData
+        } catch (error) {
+            console.error('Failed to get detailed user steps:', error)
+            return []
+        }
+    },
+
     // Get user's weekly steps (last 7 days including today)
     async getUserWeeklySteps(accessToken: string): Promise<{ date: string; steps: number }[]> {
         try {
