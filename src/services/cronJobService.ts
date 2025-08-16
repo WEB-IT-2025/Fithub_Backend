@@ -12,6 +12,7 @@ export const cronJobService = {
         this.startDataSyncJob()
         this.startHourlySyncJob()
         this.startDailyRecordCreationJob()
+        this.startDailyCleanupJob()
         this.startTokenRefreshJob()
         console.log('🕐 [CRON] All cron jobs started successfully')
     },
@@ -68,6 +69,34 @@ export const cronJobService = {
         )
 
         console.log('🕐 [CRON] Daily record creation job started (daily at 00:01)')
+    },
+
+    // Daily cleanup job - clear previous day's data and odd hours
+    startDailyCleanupJob(): void {
+        // Run every day at 00:05 AM (after daily record creation)
+        cron.schedule(
+            '5 0 * * *',
+            async () => {
+                console.log('🧹 [CRON] Starting daily cleanup...')
+                try {
+                    // Clear outdated hourly data (keep only today's data)
+                    await dataSyncService.clearOutdatedHourlyData(0) // Keep 0 days = only today
+
+                    // Clear odd hour data to ensure only even hours remain
+                    await dataSyncService.clearOddHourData()
+
+                    console.log('✅ [CRON] Daily cleanup completed successfully')
+                } catch (error) {
+                    console.error('❌ [CRON] Daily cleanup failed:', error)
+                }
+            },
+            {
+                scheduled: true,
+                timezone: 'Asia/Tokyo',
+            }
+        )
+
+        console.log('🕐 [CRON] Daily cleanup job started (daily at 00:05)')
     },
 
     // Refresh Google tokens every 30 minutes (existing job)

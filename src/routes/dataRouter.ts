@@ -4,13 +4,15 @@
 import { Router } from 'express'
 import {
     clearAllHourlyData,
+    clearOddHourData,
     clearOutdatedHourlyData,
+    clearSpecificDateData,
     clearUserHourlyData,
     getUserData,
     getUserHourlyData,
     getUserStats,
     syncUserDataManually,
-    syncUserHourlyDataManually,
+    testSyncAllUsersHourly,
 } from '~/controllers/dataController'
 import { verifyToken } from '~/middlewares/authMiddleware'
 import { requireAdmin } from '~/middlewares/requireAdmin'
@@ -26,11 +28,11 @@ router.get('/stats', verifyToken, getUserStats)
 // GET /api/data/hourly - Get user's hourly exercise data for today
 router.get('/hourly', verifyToken, getUserHourlyData)
 
-// POST /api/data/sync - Manual sync user data
+// POST /api/data/sync - Manual sync user data (includes hourly data)
 router.post('/sync', verifyToken, syncUserDataManually)
 
-// POST /api/data/sync/hourly - Manual sync hourly data for current user
-router.post('/sync/hourly', verifyToken, syncUserHourlyDataManually)
+// POST /api/data/test/sync-all-hourly - Test: trigger hourly sync for all users (admin only)
+router.post('/test/sync-all-hourly', verifyToken, requireAdmin, testSyncAllUsersHourly)
 
 // Admin routes for data cleanup
 // DELETE /api/data/cleanup - Clear all hourly data (admin only)
@@ -41,5 +43,11 @@ router.delete('/cleanup/user/:userId', verifyToken, requireAdmin, clearUserHourl
 
 // DELETE /api/data/cleanup/outdated - Clear outdated hourly data (admin only)
 router.delete('/cleanup/outdated', verifyToken, requireAdmin, clearOutdatedHourlyData)
+
+// DELETE /api/data/cleanup/odd-hours - Clear odd hour data (admin only)
+router.delete('/cleanup/odd-hours', verifyToken, requireAdmin, clearOddHourData)
+
+// DELETE /api/data/cleanup/date/:date - Clear specific date data (admin only)
+router.delete('/cleanup/date/:date', verifyToken, requireAdmin, clearSpecificDateData)
 
 export default router

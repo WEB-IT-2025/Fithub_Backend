@@ -247,6 +247,8 @@ export const googleOAuthService = {
     // Get user's steps for today with hourly intervals (for daily tracking)
     async getUserStepsTodayByHours(accessToken: string): Promise<{ timestamp: string; steps: number }[]> {
         try {
+            console.log('🕐 [Google Fit] Getting hourly steps data (will merge odd hours to even hours)')
+
             // Get start and end time for today in Japan timezone
             const now = new Date()
             const japanDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })
@@ -268,7 +270,7 @@ export const googleOAuthService = {
                             dataSourceId: 'derived:com.google.step_count.delta:com.google.android.gms:estimated_steps',
                         },
                     ],
-                    bucketByTime: { durationMillis: 2 * 60 * 60 * 1000 }, // 2 hour buckets as requested
+                    bucketByTime: { durationMillis: 60 * 60 * 1000 }, // 1 hour buckets for detailed data
                     startTimeMillis: startTime,
                     endTimeMillis: endTime,
                 },
@@ -283,13 +285,15 @@ export const googleOAuthService = {
             const fitnessData = response.data
             const hourlyData: { timestamp: string; steps: number }[] = []
 
-            // Create a map for 2-hour intervals (0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22)
+            // Create a map for all 24 hours (0-23)
             const hourlyStepsMap = new Map<number, number>()
-            for (let hour = 0; hour <= 22; hour += 2) {
+            for (let hour = 0; hour < 24; hour++) {
                 hourlyStepsMap.set(hour, 0)
             }
 
             if (fitnessData.bucket && fitnessData.bucket.length > 0) {
+                console.log(`📊 [Google Fit] Found ${fitnessData.bucket.length} hourly buckets`)
+
                 for (const bucket of fitnessData.bucket) {
                     const bucketDate = new Date(parseInt(bucket.startTimeMillis))
                     let bucketSteps = 0
@@ -312,22 +316,33 @@ export const googleOAuthService = {
 
                     // Only include data for the current day in Japan timezone
                     const bucketDateStr = japanTime.toLocaleDateString('en-CA')
-                    if (bucketDateStr === japanDateStr) {
-                        // Map to nearest 2-hour interval
-                        const twoHourInterval = Math.floor(hour / 2) * 2
-                        if (twoHourInterval <= 22) {
-                            hourlyStepsMap.set(
-                                twoHourInterval,
-                                (hourlyStepsMap.get(twoHourInterval) || 0) + bucketSteps
-                            )
-                        }
+                    if (bucketDateStr === japanDateStr && hour >= 0 && hour < 24) {
+                        hourlyStepsMap.set(hour, bucketSteps)
+                        console.log(`⏰ [Google Fit] Hour ${hour}: ${bucketSteps} steps`)
                     }
+                }
+            } else {
+                console.log('⚠️ [Google Fit] No hourly data buckets found')
+            }
+
+            // Merge odd hours into even hours and generate 2-hour interval data
+            const mergedStepsMap = new Map<number, number>()
+            for (let hour = 0; hour <= 22; hour += 2) {
+                const evenHourSteps = hourlyStepsMap.get(hour) || 0
+                const oddHourSteps = hourlyStepsMap.get(hour + 1) || 0
+                const totalSteps = evenHourSteps + oddHourSteps
+                mergedStepsMap.set(hour, totalSteps)
+
+                if (totalSteps > 0) {
+                    console.log(
+                        `🔢 [Google Fit] Merged Hour ${hour}:00-${hour + 1}:59 = ${evenHourSteps} + ${oddHourSteps} = ${totalSteps} steps`
+                    )
                 }
             }
 
             // Generate 2-hour interval data for 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22 hours
             for (let hour = 0; hour <= 22; hour += 2) {
-                const steps = hourlyStepsMap.get(hour) || 0
+                const steps = mergedStepsMap.get(hour) || 0
                 const timeString = `${hour.toString().padStart(2, '0')}:00`
 
                 hourlyData.push({
@@ -336,6 +351,7 @@ export const googleOAuthService = {
                 })
             }
 
+            console.log(`✅ [Google Fit] Generated ${hourlyData.length} 2-hour interval data points`)
             return hourlyData
         } catch (error) {
             console.error('Failed to get user steps by hours:', error)

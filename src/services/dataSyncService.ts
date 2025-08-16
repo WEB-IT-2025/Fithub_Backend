@@ -225,12 +225,20 @@ export const dataSyncService = {
     // Clear all EXERCISE_DATE data (for cleanup)
     async clearAllHourlyData(): Promise<void> {
         try {
-            // Delete all records from EXERCISE_DATE table
+            // Temporarily disable safe updates for this operation
+            await db.query('SET SQL_SAFE_UPDATES = 0')
             const [result] = await db.query(`DELETE FROM EXERCISE_DATE`)
+            await db.query('SET SQL_SAFE_UPDATES = 1')
 
             const affectedRows = (result as { affectedRows: number }).affectedRows
             console.log(`🧹 [CLEANUP] Cleared all ${affectedRows} hourly records from EXERCISE_DATE table`)
         } catch (error) {
+            // Ensure safe updates is re-enabled even if there's an error
+            try {
+                await db.query('SET SQL_SAFE_UPDATES = 1')
+            } catch (e) {
+                console.error('Failed to re-enable SQL_SAFE_UPDATES:', e)
+            }
             console.error('❌ [CLEANUP] Failed to clear all hourly data:', error)
         }
     },
@@ -251,17 +259,74 @@ export const dataSyncService = {
     // Clear outdated EXERCISE_DATE data (older than specified days)
     async clearOutdatedHourlyData(daysToKeep: number = 1): Promise<void> {
         try {
-            // Delete records older than specified days
+            // Temporarily disable safe updates for this operation
+            await db.query('SET SQL_SAFE_UPDATES = 0')
             const [result] = await db.query(
                 `DELETE FROM EXERCISE_DATE 
                  WHERE DATE(timestamp) < DATE_SUB(CURDATE(), INTERVAL ? DAY)`,
                 [daysToKeep]
             )
+            await db.query('SET SQL_SAFE_UPDATES = 1')
 
             const affectedRows = (result as { affectedRows: number }).affectedRows
             console.log(`🧹 [CLEANUP] Cleared ${affectedRows} outdated hourly records (older than ${daysToKeep} days)`)
         } catch (error) {
+            // Ensure safe updates is re-enabled even if there's an error
+            try {
+                await db.query('SET SQL_SAFE_UPDATES = 1')
+            } catch (e) {
+                console.error('Failed to re-enable SQL_SAFE_UPDATES:', e)
+            }
             console.error(`❌ [CLEANUP] Failed to clear outdated hourly data:`, error)
+        }
+    },
+
+    // Clear odd hour data (1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23)
+    async clearOddHourData(): Promise<void> {
+        try {
+            // Temporarily disable safe updates for this operation
+            await db.query('SET SQL_SAFE_UPDATES = 0')
+            const [result] = await db.query(
+                `DELETE FROM EXERCISE_DATE 
+                 WHERE HOUR(timestamp) IN (1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23)`
+            )
+            await db.query('SET SQL_SAFE_UPDATES = 1')
+
+            const affectedRows = (result as { affectedRows: number }).affectedRows
+            console.log(`🧹 [CLEANUP] Cleared ${affectedRows} odd hour records (keeping only even hours)`)
+        } catch (error) {
+            // Ensure safe updates is re-enabled even if there's an error
+            try {
+                await db.query('SET SQL_SAFE_UPDATES = 1')
+            } catch (e) {
+                console.error('Failed to re-enable SQL_SAFE_UPDATES:', e)
+            }
+            console.error(`❌ [CLEANUP] Failed to clear odd hour data:`, error)
+        }
+    },
+
+    // Clear hourly data for a specific date (e.g., '2025-08-14')
+    async clearSpecificDateData(targetDate: string): Promise<void> {
+        try {
+            // Temporarily disable safe updates for this operation
+            await db.query('SET SQL_SAFE_UPDATES = 0')
+            const [result] = await db.query(
+                `DELETE FROM EXERCISE_DATE 
+                 WHERE DATE(timestamp) = ?`,
+                [targetDate]
+            )
+            await db.query('SET SQL_SAFE_UPDATES = 1')
+
+            const affectedRows = (result as { affectedRows: number }).affectedRows
+            console.log(`🧹 [CLEANUP] Cleared ${affectedRows} records for date: ${targetDate}`)
+        } catch (error) {
+            // Ensure safe updates is re-enabled even if there's an error
+            try {
+                await db.query('SET SQL_SAFE_UPDATES = 1')
+            } catch (e) {
+                console.error('Failed to re-enable SQL_SAFE_UPDATES:', e)
+            }
+            console.error(`❌ [CLEANUP] Failed to clear data for date ${targetDate}:`, error)
         }
     },
 
