@@ -12,6 +12,7 @@ import {
     getUserHourlyData,
     getUserStats,
     syncUserDataManually,
+    testDailyCleanup,
     testSyncAllUsersHourly,
 } from '~/controllers/dataController'
 import { verifyToken } from '~/middlewares/authMiddleware'
@@ -33,6 +34,9 @@ router.post('/sync', verifyToken, syncUserDataManually)
 
 // POST /api/data/test/sync-all-hourly - Test: trigger hourly sync for all users (admin only)
 router.post('/test/sync-all-hourly', verifyToken, requireAdmin, testSyncAllUsersHourly)
+
+// POST /api/data/test/cleanup-yesterday - Test: manually run daily cleanup (admin only)
+router.post('/test/cleanup-yesterday', verifyToken, requireAdmin, testDailyCleanup)
 
 // Admin routes for data cleanup
 // DELETE /api/data/cleanup - Clear all hourly data (admin only)

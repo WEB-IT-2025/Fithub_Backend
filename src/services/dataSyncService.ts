@@ -261,15 +261,28 @@ export const dataSyncService = {
         try {
             // Temporarily disable safe updates for this operation
             await db.query('SET SQL_SAFE_UPDATES = 0')
-            const [result] = await db.query(
-                `DELETE FROM EXERCISE_DATE 
-                 WHERE DATE(timestamp) < DATE_SUB(CURDATE(), INTERVAL ? DAY)`,
-                [daysToKeep]
-            )
+
+            let query: string
+            let params: (string | number)[]
+
+            if (daysToKeep === 0) {
+                // Keep only today's data - delete everything before today
+                query = `DELETE FROM EXERCISE_DATE WHERE DATE(timestamp) < CURDATE()`
+                params = []
+            } else {
+                // Keep specified number of days - delete everything older
+                query = `DELETE FROM EXERCISE_DATE WHERE DATE(timestamp) < DATE_SUB(CURDATE(), INTERVAL ? DAY)`
+                params = [daysToKeep]
+            }
+
+            console.log(`🧹 [CLEANUP] Executing cleanup query: ${query} with params: ${JSON.stringify(params)}`)
+            const [result] = await db.query(query, params)
             await db.query('SET SQL_SAFE_UPDATES = 1')
 
             const affectedRows = (result as { affectedRows: number }).affectedRows
-            console.log(`🧹 [CLEANUP] Cleared ${affectedRows} outdated hourly records (older than ${daysToKeep} days)`)
+            console.log(
+                `🧹 [CLEANUP] Cleared ${affectedRows} outdated hourly records (keeping ${daysToKeep === 0 ? 'only today' : `${daysToKeep} days`})`
+            )
         } catch (error) {
             // Ensure safe updates is re-enabled even if there's an error
             try {

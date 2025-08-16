@@ -440,3 +440,32 @@ export const testSyncAllUsersHourly = async (req: Request, res: Response) => {
         })
     }
 }
+
+// POST /api/data/test/cleanup-yesterday - Test: manually run daily cleanup (admin only)
+export const testDailyCleanup = async (req: Request, res: Response) => {
+    try {
+        console.log('🧪 [TEST] Manual daily cleanup requested')
+
+        // Clear outdated hourly data (keep only today's data)
+        await dataSyncService.clearOutdatedHourlyData(0) // Keep 0 days = only today
+
+        // Clear odd hour data to ensure only even hours remain
+        await dataSyncService.clearOddHourData()
+
+        const response = {
+            success: true,
+            message: "Daily cleanup executed (test) - removed yesterday's data and odd hours",
+            executed_at: new Date().toISOString(),
+        }
+
+        console.log('✅ [TEST] Manual daily cleanup completed')
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [TEST] Failed to execute daily cleanup:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to execute daily cleanup',
+            error: error instanceof Error ? error.message : 'Unknown error',
+        })
+    }
+}
