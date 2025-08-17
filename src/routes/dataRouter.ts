@@ -13,6 +13,7 @@ import {
     getUserStats,
     syncUserDataManually,
     testDailyCleanup,
+    testDebugGoogleFit,
     testSyncAllUsersHourly,
 } from '~/controllers/dataController'
 import { verifyToken } from '~/middlewares/authMiddleware'
@@ -37,6 +38,9 @@ router.post('/test/sync-all-hourly', verifyToken, requireAdmin, testSyncAllUsers
 
 // POST /api/data/test/cleanup-yesterday - Test: manually run daily cleanup (admin only)
 router.post('/test/cleanup-yesterday', verifyToken, requireAdmin, testDailyCleanup)
+
+// POST /api/data/test/debug-google-fit - Test: debug Google Fit API (user)
+router.post('/test/debug-google-fit', verifyToken, testDebugGoogleFit)
 
 // Admin routes for data cleanup
 // DELETE /api/data/cleanup - Clear all hourly data (admin only)

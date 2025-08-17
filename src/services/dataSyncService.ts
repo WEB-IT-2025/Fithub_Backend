@@ -358,7 +358,7 @@ export const dataSyncService = {
             )
 
             const hourlyData = (rows as { timestamp: Date; steps: number }[]).map((row) => ({
-                timestamp: row.timestamp.toISOString().replace('T', ' ').substring(0, 19),
+                timestamp: row.timestamp.toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }),
                 steps: row.steps,
             }))
 

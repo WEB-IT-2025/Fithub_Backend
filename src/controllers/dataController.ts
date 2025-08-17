@@ -216,9 +216,10 @@ export const getUserHourlyData = async (req: Request, res: Response) => {
         let cumulativeSteps = 0
         const chartData = hourlyData.map((data) => {
             cumulativeSteps += data.steps
-            const hour = new Date(data.timestamp).getHours()
+            // Parse as Japan time since timestamp is already in JST format
+            const hour = parseInt(data.timestamp.split(' ')[1].split(':')[0])
             return {
-                time: `${hour.toString().padStart(2, '0')}:00`, // User-friendly format (00:00, 01:00, etc.)
+                time: `${hour.toString().padStart(2, '0')}:00`, // User-friendly format (00:00, 02:00, etc.)
                 timeValue: hour, // Numeric value for chart libraries
                 steps: data.steps,
                 totalSteps: cumulativeSteps,
@@ -465,6 +466,51 @@ export const testDailyCleanup = async (req: Request, res: Response) => {
         res.status(500).json({
             success: false,
             message: 'Failed to execute daily cleanup',
+            error: error instanceof Error ? error.message : 'Unknown error',
+        })
+    }
+}
+
+// POST /api/data/test/debug-google-fit - Test: debug Google Fit API data retrieval (user)
+export const testDebugGoogleFit = async (req: Request, res: Response) => {
+    try {
+        const authReq = req as AuthenticatedRequest
+        const userId = authReq.user?.user_id
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                message: 'User not authenticated',
+            })
+        }
+
+        console.log('🧪 [TEST] Debug Google Fit API data retrieval requested')
+
+        // Force sync hourly data for this user
+        const hourlySyncResult = await dataSyncService.syncUserHourlyExerciseData(userId)
+
+        // Get the updated data from database
+        const hourlyData = await dataSyncService.getTodayHourlyStepsFromDatabase(userId)
+
+        const response = {
+            success: true,
+            message: 'Google Fit debug completed',
+            data: {
+                user_id: userId,
+                sync_result: hourlySyncResult,
+                database_data: hourlyData,
+                total_synced: hourlySyncResult.length,
+                total_in_db: hourlyData.length,
+            },
+            executed_at: new Date().toISOString(),
+        }
+
+        console.log('✅ [TEST] Google Fit debug completed')
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [TEST] Google Fit debug failed:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to debug Google Fit',
             error: error instanceof Error ? error.message : 'Unknown error',
         })
     }
