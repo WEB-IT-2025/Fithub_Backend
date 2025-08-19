@@ -1,7 +1,7 @@
 # データAPI
 
 ## 概要
-データAPIは、ユーザーのフィットネスデータ（Google Fit歩数）とGitHubコントリビューションの取得・同期を可能にします。すべてのエンドポイントはJWT認証が必要です。
+データAPIは、ユーザーのフィットネスデータ（Google Fit歩数）とGitHubコントリビューションの取得・同期を可能にします。また、日中の詳細な歩数推移を2時間毎に追跡する機能も提供します。すべてのエンドポイントはJWT認証が必要です。
 
 ## 認証必須
 ```
@@ -142,13 +142,114 @@ Content-Type: application/json
 }
 ```
 
+### 📈 時間別歩数データ取得
+
+#### `GET /api/data/hourly`
+
+今日の2時間毎の詳細な歩数データを取得します。日中の歩数推移をグラフ表示するために使用できます。
+
+**ヘッダー:**
+```
+Authorization: Bearer <your_jwt_token>
+Content-Type: application/json
+```
+
+**レスポンス:**
+```json
+{
+  "success": true,
+  "data": {
+    "user_id": "google_123456789",
+    "date": "2025-08-14",
+    "hourly_data": [
+      {
+        "time": "00:00",
+        "timeValue": 0,
+        "steps": 22,
+        "totalSteps": 22,
+        "timestamp": "2025-08-14 00:00:00"
+      },
+      {
+        "time": "02:00",
+        "timeValue": 2,
+        "steps": 0,
+        "totalSteps": 22,
+        "timestamp": "2025-08-14 02:00:00"
+      },
+      {
+        "time": "14:00",
+        "timeValue": 14,
+        "steps": 24,
+        "totalSteps": 90,
+        "timestamp": "2025-08-14 14:00:00"
+      },
+      {
+        "time": "22:00",
+        "timeValue": 22,
+        "steps": 0,
+        "totalSteps": 90,
+        "timestamp": "2025-08-14 22:00:00"
+      }
+    ],
+    "total_steps": 90,
+    "data_points": 12,
+    "time_range": "2-hour intervals: 00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00",
+    "last_updated": "2025-08-14T12:30:45.123Z"
+  }
+}
+```
+
+### 🔄 時間別データ手動同期
+
+#### `POST /api/data/sync/hourly`
+
+現在のユーザーの時間別歩数データを手動でGoogle Fitから同期します。
+
+**ヘッダー:**
+```
+Authorization: Bearer <your_jwt_token>
+Content-Type: application/json
+```
+
+**リクエストボディ:** (空)
+
+**レスポンス:**
+```json
+{
+  "success": true,
+  "message": "Hourly data synced successfully",
+  "data": {
+    "user_id": "google_123456789",
+    "synced_at": "2025-08-14T14:15:30.456Z",
+    "hourly_entries": 8,
+    "synced_data": [
+      {
+        "user_id": "google_123456789",
+        "timestamp": "2025-08-14 00:00:00",
+        "steps": 0
+      },
+      {
+        "user_id": "google_123456789", 
+        "timestamp": "2025-08-14 02:00:00",
+        "steps": 243
+      }
+    ]
+  }
+}
+```
+
 ## 📊 データソース
 
 ### Google Fit統合
 - **ソース**: Google Fit API
-- **データタイプ**: 日次歩数
-- **同期頻度**: 15分毎（自動）+ 手動同期
+- **データタイプ**: 日次歩数 + 2時間毎の詳細歩数
+- **同期頻度**: 
+  - 日次データ: 15分毎（自動）+ 手動同期
+  - 時間別データ: 2時間毎（自動）+ 手動同期
 - **履歴データ**: 最大1年（Google Fitの設定による）
+- **データ保持**: 
+  - 日次データ: EXERCISE テーブルに永続保存
+  - 時間別データ: EXERCISE_DATE テーブルに当日のみ保持（翌日自動削除）
 
 ### GitHub統合  
 - **ソース**: GitHub GraphQL API
@@ -159,8 +260,9 @@ Content-Type: application/json
 ## 🔄 自動同期の動作
 
 ### 自動同期
-- **頻度**: 15分毎
-- **対象**: システム内の全ユーザー
+- **日次データ同期**: 15分毎（全ユーザー）
+- **時間別データ同期**: 2時間毎（Googleアクセストークンを持つユーザー）
+- **データクリーンアップ**: 毎日深夜0:01に前日の時間別データを削除
 - **バックグラウンド処理**: Cronジョブサービス
 - **リトライロジック**: 指数バックオフで3回試行
 

@@ -244,6 +244,198 @@ export const googleOAuthService = {
         }
     },
 
+    // Get user's steps for today with hourly intervals (for daily tracking)
+    async getUserStepsTodayByHours(accessToken: string): Promise<{ timestamp: string; steps: number }[]> {
+        try {
+            console.log('🕐 [Google Fit] Getting hourly steps data (will merge odd hours to even hours)')
+
+            // Get start and end time for today in Japan timezone
+            const now = new Date()
+            const japanDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })
+
+            // Create Japan timezone start of day (00:00:00 JST)
+            const todayJapan = new Date(japanDateStr + 'T00:00:00')
+            const startTime = todayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
+
+            // Create Japan timezone end of day (23:59:59 JST)
+            const endOfTodayJapan = new Date(japanDateStr + 'T23:59:59')
+            const endTime = endOfTodayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
+
+            const response = await axios.post(
+                'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',
+                {
+                    aggregateBy: [
+                        {
+                            dataTypeName: 'com.google.step_count.delta',
+                            dataSourceId: 'derived:com.google.step_count.delta:com.google.android.gms:estimated_steps',
+                        },
+                    ],
+                    bucketByTime: { durationMillis: 60 * 60 * 1000 }, // 1 hour buckets for detailed data
+                    startTimeMillis: startTime,
+                    endTimeMillis: endTime,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            )
+
+            const fitnessData = response.data
+            const hourlyData: { timestamp: string; steps: number }[] = []
+
+            // Create a map for all 24 hours (0-23)
+            const hourlyStepsMap = new Map<number, number>()
+            for (let hour = 0; hour < 24; hour++) {
+                hourlyStepsMap.set(hour, 0)
+            }
+
+            if (fitnessData.bucket && fitnessData.bucket.length > 0) {
+                console.log(`📊 [Google Fit] Found ${fitnessData.bucket.length} hourly buckets`)
+
+                for (const bucket of fitnessData.bucket) {
+                    const bucketDate = new Date(parseInt(bucket.startTimeMillis))
+                    let bucketSteps = 0
+
+                    if (bucket.dataset && bucket.dataset.length > 0) {
+                        for (const dataset of bucket.dataset) {
+                            if (dataset.point && dataset.point.length > 0) {
+                                for (const point of dataset.point) {
+                                    if (point.value && point.value.length > 0) {
+                                        bucketSteps += point.value[0].intVal || 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Convert back to Japan timezone
+                    const japanTime = new Date(bucketDate.getTime() + 9 * 60 * 60 * 1000)
+                    const hour = japanTime.getHours()
+
+                    // Only include data for the current day in Japan timezone
+                    const bucketDateStr = japanTime.toLocaleDateString('en-CA')
+                    if (bucketDateStr === japanDateStr && hour >= 0 && hour < 24) {
+                        hourlyStepsMap.set(hour, bucketSteps)
+                        console.log(`⏰ [Google Fit] Hour ${hour}: ${bucketSteps} steps`)
+                    }
+                }
+            } else {
+                console.log('⚠️ [Google Fit] No hourly data buckets found')
+            }
+
+            // Merge odd hours into even hours and generate 2-hour interval data
+            const mergedStepsMap = new Map<number, number>()
+            for (let hour = 0; hour <= 22; hour += 2) {
+                const evenHourSteps = hourlyStepsMap.get(hour) || 0
+                const oddHourSteps = hourlyStepsMap.get(hour + 1) || 0
+                const totalSteps = evenHourSteps + oddHourSteps
+                mergedStepsMap.set(hour, totalSteps)
+
+                if (totalSteps > 0) {
+                    console.log(
+                        `🔢 [Google Fit] Merged Hour ${hour}:00-${hour + 1}:59 = ${evenHourSteps} + ${oddHourSteps} = ${totalSteps} steps`
+                    )
+                }
+            }
+
+            // Generate 2-hour interval data for 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22 hours
+            for (let hour = 0; hour <= 22; hour += 2) {
+                const steps = mergedStepsMap.get(hour) || 0
+                const timeString = `${hour.toString().padStart(2, '0')}:00`
+
+                hourlyData.push({
+                    timestamp: `${japanDateStr} ${timeString}:00`,
+                    steps: steps,
+                })
+            }
+
+            console.log(`✅ [Google Fit] Generated ${hourlyData.length} 2-hour interval data points`)
+            return hourlyData
+        } catch (error) {
+            console.error('Failed to get user steps by hours:', error)
+            return []
+        }
+    },
+
+    // Get user's detailed steps data with finer granularity (30-minute intervals)
+    async getUserDetailedStepsToday(accessToken: string): Promise<{ timestamp: string; steps: number }[]> {
+        try {
+            // Get start and end time for today in Japan timezone
+            const now = new Date()
+            const japanDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' })
+
+            // Create Japan timezone start of day (00:00:00 JST)
+            const todayJapan = new Date(japanDateStr + 'T00:00:00')
+            const startTime = todayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
+
+            // Create Japan timezone end of day (23:59:59 JST)
+            const endOfTodayJapan = new Date(japanDateStr + 'T23:59:59')
+            const endTime = endOfTodayJapan.getTime() - 9 * 60 * 60 * 1000 // Convert JST to UTC
+
+            const response = await axios.post(
+                'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate',
+                {
+                    aggregateBy: [
+                        {
+                            dataTypeName: 'com.google.step_count.delta',
+                            dataSourceId: 'derived:com.google.step_count.delta:com.google.android.gms:estimated_steps',
+                        },
+                    ],
+                    bucketByTime: { durationMillis: 30 * 60 * 1000 }, // 30 minute buckets for detailed data
+                    startTimeMillis: startTime,
+                    endTimeMillis: endTime,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            )
+
+            const fitnessData = response.data
+            const detailedData: { timestamp: string; steps: number }[] = []
+
+            if (fitnessData.bucket && fitnessData.bucket.length > 0) {
+                for (const bucket of fitnessData.bucket) {
+                    const bucketDate = new Date(parseInt(bucket.startTimeMillis))
+                    let bucketSteps = 0
+
+                    if (bucket.dataset && bucket.dataset.length > 0) {
+                        for (const dataset of bucket.dataset) {
+                            if (dataset.point && dataset.point.length > 0) {
+                                for (const point of dataset.point) {
+                                    if (point.value && point.value.length > 0) {
+                                        bucketSteps += point.value[0].intVal || 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Convert back to Japan timezone
+                    const japanTime = new Date(bucketDate.getTime() + 9 * 60 * 60 * 1000)
+
+                    // Only include data for the current day in Japan timezone
+                    const bucketDateStr = japanTime.toLocaleDateString('en-CA')
+                    if (bucketDateStr === japanDateStr && bucketSteps > 0) {
+                        detailedData.push({
+                            timestamp: japanTime.toISOString().replace('T', ' ').substring(0, 19),
+                            steps: bucketSteps,
+                        })
+                    }
+                }
+            }
+
+            return detailedData
+        } catch (error) {
+            console.error('Failed to get detailed user steps:', error)
+            return []
+        }
+    },
+
     // Get user's weekly steps (last 7 days including today)
     async getUserWeeklySteps(accessToken: string): Promise<{ date: string; steps: number }[]> {
         try {

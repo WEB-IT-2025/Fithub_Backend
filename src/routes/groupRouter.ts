@@ -5,8 +5,12 @@ import {
     adminDeleteGroup,
     createGroup,
     deleteGroup,
+    generateInviteCode,
     getGroupMembers,
+    getPublicGroups,
     getUserGroups,
+    inviteGroupMember,
+    joinByInviteCode,
     removeGroupMember,
     updateGroup,
 } from '~/controllers/groupController'
@@ -18,6 +22,9 @@ import {
     validateGroupCreation,
     validateGroupDelete,
     validateGroupUpdate,
+    validateInviteCodeGeneration,
+    validateInviteCodeJoin,
+    validateInviteOperation,
     validateMemberOperation,
 } from '~/middlewares/validation/groupValidation'
 
@@ -56,8 +63,32 @@ router.delete(
 // 所属グループ一覧取得
 router.get('/member/userlist/:user_id', getUserGroups)
 
+// 公開グループ検索
+router.get('/search', authenticateJWT, getPublicGroups)
+
 // グループメンバー操作
-router.post('/members/join', validateMemberOperation, handleValidationErrors, addGroupMember)
+router.post('/members/join', authenticateJWT, validateMemberOperation, handleValidationErrors, addGroupMember)
+
+router.post(
+    '/members/invite',
+    authenticateJWT,
+    validateInviteOperation,
+    handleValidationErrors,
+    requireGroupLeader,
+    inviteGroupMember
+)
+
+// 招待コード機能
+router.post(
+    '/invite-code/generate',
+    authenticateJWT,
+    validateInviteCodeGeneration,
+    handleValidationErrors,
+    requireGroupLeader,
+    generateInviteCode
+)
+
+router.post('/invite-code/join', authenticateJWT, validateInviteCodeJoin, handleValidationErrors, joinByInviteCode)
 
 router.get('/members/list/:group_id', getGroupMembers)
 
