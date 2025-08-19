@@ -8,12 +8,23 @@ export interface GroupRow extends RowDataPacket {
     group_name: string
     max_person: number
     back_image: string
+    invite_code?: string
 }
 
 export interface GroupMember extends RowDataPacket {
     user_id: string
     user_name: string
     user_icon: string
+}
+
+export interface GroupMemberWithPet extends RowDataPacket {
+    user_id: string
+    user_name: string
+    user_icon: string
+    main_pet_name?: string
+    main_pet_item_id?: string
+    pet_size?: number
+    pet_intimacy?: number
 }
 
 export const groupModel = {
@@ -74,7 +85,7 @@ export const groupModel = {
     },
 
     // ユーザーが所属するグループ一覧取得
-    async getGroupsByUserId(user_id: string): Promise<any[]> {
+    async getGroupsByUserId(user_id: string): Promise<GroupRow[]> {
         const [rows] = await db.query(
             `SELECT 
                 gi.group_id,
@@ -88,10 +99,30 @@ export const groupModel = {
             WHERE gm.user_id = ?`,
             [user_id]
         )
-        return rows as any[]
+        return rows as GroupRow[]
     },
 
-    // グループメンバー一覧取得
+    // グループメンバー一覧取得（メインペット情報含む）
+    async getGroupMembersWithPets(group_id: string): Promise<GroupMemberWithPet[]> {
+        const [rows] = await db.query<GroupMemberWithPet[]>(
+            `SELECT 
+                u.user_id, 
+                u.user_name, 
+                u.user_icon,
+                up.user_pet_name as main_pet_name,
+                up.item_id as main_pet_item_id,
+                up.pet_size,
+                up.pet_intimacy
+            FROM GROUP_MEMBER gm 
+            JOIN USERS u ON gm.user_id = u.user_id 
+            LEFT JOIN USERS_PETS up ON u.user_id = up.user_id AND up.user_main_pet = true
+            WHERE gm.group_id = ?`,
+            [group_id]
+        )
+        return rows
+    },
+
+    // グループメンバー一覧取得（従来版）
     async getGroupMembers(group_id: string): Promise<GroupMember[]> {
         const [rows] = await db.query<GroupMember[]>(
             `SELECT u.user_id, u.user_name, u.user_icon
@@ -142,5 +173,73 @@ export const groupModel = {
             group_id,
         ])
         return result.affectedRows > 0
+    },
+
+    // 公開グループ検索
+    async searchPublicGroups(search?: string, limit: number = 20): Promise<GroupRow[]> {
+        let query = `
+            SELECT 
+                gi.group_id,
+                gi.group_name,
+                gi.max_person,
+                gi.back_image,
+                gi.admin_id,
+                (SELECT COUNT(*) FROM GROUP_MEMBER gm2 WHERE gm2.group_id = gi.group_id) AS current_count
+            FROM GROUP_INFO gi
+            WHERE gi.group_public = true
+        `
+        const params: (string | number)[] = []
+
+        if (search) {
+            query += ' AND gi.group_name LIKE ?'
+            params.push(`%${search}%`)
+        }
+
+        query += ' ORDER BY gi.group_name LIMIT ?'
+        params.push(limit)
+
+        const [rows] = await db.query(query, params)
+        return rows as GroupRow[]
+    },
+
+    // ユーザー存在確認
+    async getUserById(user_id: string): Promise<{ user_id: string; user_name: string } | null> {
+        const [rows] = await db.query<RowDataPacket[]>('SELECT user_id, user_name FROM USERS WHERE user_id = ?', [
+            user_id,
+        ])
+        return rows.length > 0 ? (rows[0] as { user_id: string; user_name: string }) : null
+    },
+
+    // 招待コード生成（8桁のランダム文字列）
+    generateInviteCode(): string {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        let result = ''
+        for (let i = 0; i < 8; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length))
+        }
+        return result
+    },
+
+    // 招待コード設定
+    async setInviteCode(group_id: string, invite_code: string): Promise<boolean> {
+        const [result] = await db.query<OkPacket>('UPDATE GROUP_INFO SET invite_code = ? WHERE group_id = ?', [
+            invite_code,
+            group_id,
+        ])
+        return result.affectedRows > 0
+    },
+
+    // 招待コードでグループ取得
+    async getGroupByInviteCode(invite_code: string): Promise<GroupRow | null> {
+        const [rows] = await db.query<GroupRow[]>('SELECT * FROM GROUP_INFO WHERE invite_code = ?', [invite_code])
+        return rows.length > 0 ? rows[0] : null
+    },
+
+    // 招待コード重複チェック
+    async isInviteCodeExists(invite_code: string): Promise<boolean> {
+        const [rows] = await db.query<RowDataPacket[]>('SELECT invite_code FROM GROUP_INFO WHERE invite_code = ?', [
+            invite_code,
+        ])
+        return rows.length > 0
     },
 }

@@ -92,6 +92,7 @@ CREATE TABLE GROUP_INFO (
     max_person INT NOT NULL,
     back_image VARCHAR(255) NOT NULL,
     group_public BOOLEAN NOT NULL,
+    invite_code VARCHAR(8) UNIQUE,
     FOREIGN KEY (admin_id) REFERENCES USERS(user_id) ON DELETE CASCADE
 );
 
