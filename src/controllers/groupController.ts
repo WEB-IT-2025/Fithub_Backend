@@ -119,6 +119,7 @@ export const getUserGroups = asyncHandler(async (req: Request, res: Response) =>
         group_id: g.group_id,
         group_name: g.group_name,
         max_person: g.max_person, // 定員のみ表示
+        current_count: g.current_count, // 現在の参加人数を追加
         back_image: g.back_image,
         is_leader: g.admin_id === user_id,
         role: g.admin_id === user_id ? 'GROUP_LEADER' : 'MEMBER',
