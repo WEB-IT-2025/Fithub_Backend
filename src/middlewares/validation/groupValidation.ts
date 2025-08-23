@@ -82,10 +82,10 @@ export const validateInviteCodeJoin = [
 ]
 
 // メンバー退出用バリデーション（新規追加）
-export const validateLeaveGroup = [
-    body('group_id').notEmpty().withMessage('group_idは必須です'),
-    body('user_id').notEmpty().withMessage('user_idは必須です'),
-]
+export const validateLeaveGroup = [body('group_id').notEmpty().withMessage('group_idは必須です')]
+
+// 自己退会用バリデーション
+export const validateSelfLeave = [body('group_id').notEmpty().withMessage('group_idは必須です')]
 
 // バリデーションエラー処理
 export const handleValidationErrors = (req: Request, res: Response, next: NextFunction) => {

@@ -11,6 +11,7 @@ import {
     getPublicGroups,
     inviteGroupMember,
     joinByInviteCode,
+    leaveGroup,
     removeGroupMember,
     updateGroup,
 } from '~/controllers/groupController'
@@ -26,6 +27,7 @@ import {
     validateInviteCodeJoin,
     validateInviteOperation,
     validateMemberOperation,
+    validateSelfLeave,
 } from '~/middlewares/validation/groupValidation'
 
 const router = express.Router()
@@ -99,5 +101,8 @@ router.delete(
     requireGroupLeader, // グループリーダー権限チェック
     removeGroupMember
 )
+
+// 自己退会
+router.delete('/members/leave', authenticateJWT, validateSelfLeave, handleValidationErrors, leaveGroup)
 
 export default router

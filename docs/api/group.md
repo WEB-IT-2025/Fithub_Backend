@@ -253,6 +253,26 @@ GET /api/group/members/list/group_12345
 }
 ```
 
+#### `DELETE /api/group/members/leave`
+
+グループから自己退会します（一般メンバーのみ）。
+
+**リクエストボディ:**
+```json
+{
+  "group_id": "group_12345"
+}
+```
+
+**レスポンス:**
+```json
+{
+  "message": "朝活ランニング部から退会しました",
+  "group_id": "group_12345",
+  "group_name": "朝活ランニング部"
+}
+```
+
 ### 🔍 グループ検索
 
 #### `GET /api/group/search`
@@ -397,6 +417,20 @@ GET /api/group/search?search=ランニング&limit=10
 }
 ```
 
+### 自己退会エラー（リーダー）
+```json
+{
+  "error": "グループリーダーは退会できません。グループを削除するか、他のメンバーにリーダーを譲渡してください。"
+}
+```
+
+### 非メンバーエラー
+```json
+{
+  "error": "あなたはこのグループのメンバーではありません。"
+}
+```
+
 ## 🔐 権限システム
 
 ### グループリーダー権限
@@ -407,7 +441,9 @@ GET /api/group/search?search=ランニング&limit=10
 
 ### 一般メンバー権限
 - グループ情報の閲覧
-- 自己退会（将来実装予定）
+- 自己退会
+- グループへの参加（公開グループ）
+- 招待コードでの参加
 
 ### システム管理者権限
 - すべてのグループの強制削除
@@ -502,6 +538,25 @@ const getMyGroups = async () => {
   
   const groups = await response.json();
   return groups;
+};
+
+// グループから退会
+const leaveGroup = async (groupId) => {
+  const response = await fetch('/api/group/members/leave', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    body: JSON.stringify({ group_id: groupId })
+  });
+  
+  const result = await response.json();
+  if (response.ok) {
+    console.log('退会成功:', result.message);
+  } else {
+    console.error('エラー:', result.error);
+  }
 };
 ```
 
