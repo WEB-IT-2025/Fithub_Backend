@@ -27,6 +27,7 @@ import {
     validateInviteCodeJoin,
     validateInviteOperation,
     validateMemberOperation,
+    validateLeaveGroup,
 } from '~/middlewares/validation/groupValidation'
 
 const router = express.Router()
@@ -35,7 +36,7 @@ const router = express.Router()
 router.post('/create', authenticateJWT, validateGroupCreation, handleValidationErrors, createGroup)
 
 router.put(
-    '/update',
+    '/update/:group_id',
     authenticateJWT,
     validateGroupUpdate,
     handleValidationErrors,
@@ -44,7 +45,7 @@ router.put(
 )
 
 router.delete(
-    '/delete',
+    '/delete/:group_id',
     authenticateJWT,
     validateGroupDelete,
     handleValidationErrors,
@@ -54,7 +55,7 @@ router.delete(
 
 // システム管理者専用操作
 router.delete(
-    '/admin-delete',
+    '/admin-delete/:group_id',
     validateGroupDelete,
     handleValidationErrors,
     requireAdmin, // システム管理者権限チェック
@@ -68,10 +69,10 @@ router.get('/member/userlist', authenticateJWT, getMyGroups)
 router.get('/search', authenticateJWT, getPublicGroups)
 
 // グループメンバー操作
-router.post('/members/join', authenticateJWT, validateMemberOperation, handleValidationErrors, addGroupMember)
+router.post('/members/join/:group_id', authenticateJWT, validateMemberOperation, handleValidationErrors, addGroupMember)
 
 router.post(
-    '/members/invite',
+    '/members/invite/:group_id/:user_id',
     authenticateJWT,
     validateInviteOperation,
     handleValidationErrors,
@@ -81,7 +82,7 @@ router.post(
 
 // 招待コード機能
 router.post(
-    '/invite-code/generate',
+    '/invite-code/generate/:group_id',
     authenticateJWT,
     validateInviteCodeGeneration,
     handleValidationErrors,
@@ -94,14 +95,15 @@ router.post('/invite-code/join', authenticateJWT, validateInviteCodeJoin, handle
 router.get('/members/list/:group_id', authenticateJWT, getGroupMembers)
 
 router.delete(
-    '/members/remove',
-    validateMemberOperation,
+    '/members/remove/:group_id/:user_id',
+    authenticateJWT,
+    validateInviteOperation, // 同じパラメータ構造なので再利用
     handleValidationErrors,
     requireGroupLeader, // グループリーダー権限チェック
     removeGroupMember
 )
 
 // 自己退会
-router.delete('/members/leave/:group_id', authenticateJWT, leaveGroup)
+router.delete('/members/leave/:group_id', authenticateJWT, validateLeaveGroup, handleValidationErrors, leaveGroup)
 
 export default router

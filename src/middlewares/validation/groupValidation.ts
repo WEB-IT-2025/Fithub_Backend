@@ -1,6 +1,6 @@
 // src/middlewares/groupValidations.ts
 import { NextFunction, Request, Response } from 'express'
-import { body } from 'express-validator'
+import { body, param } from 'express-validator'
 import { validationResult } from 'express-validator'
 
 export const validateGroupCreation = [
@@ -23,10 +23,9 @@ export const validateGroupCreation = [
     body('group_public').optional().isBoolean().withMessage('group_publicはtrueまたはfalseで指定してください'),
 ]
 
-// グループ更新用バリデーション（グループリーダー権限チェック追加）
+// グループ更新用バリデーション（パスパラメータ対応）
 export const validateGroupUpdate = [
-    body('group_id').notEmpty().withMessage('group_idは必須です'),
-    body('user_id').notEmpty().withMessage('user_idは必須です（権限確認のため）'),
+    param('group_id').notEmpty().withMessage('group_idは必須です'),
     body('group_name')
         .optional()
         .notEmpty()
@@ -46,29 +45,25 @@ export const validateGroupUpdate = [
         .withMessage('back_imageは有効な画像ファイル名（.jpg, .png, .gif, .webp）で指定してください'),
 ]
 
-// グループ削除用バリデーション（グループリーダー権限チェック追加）
+// グループ削除用バリデーション（パスパラメータ対応）
 export const validateGroupDelete = [
-    body('group_id').notEmpty().withMessage('group_idは必須です'),
-    body('user_id')
-        .optional() // admin削除時は不要
-        .notEmpty()
-        .withMessage('user_idは必須です（権限確認のため）'),
+    param('group_id').notEmpty().withMessage('group_idは必須です'),
 ]
 
-// メンバー操作用バリデーション（自己参加方式）
+// メンバー操作用バリデーション（自己参加方式、パスパラメータ対応）
 export const validateMemberOperation = [
-    body('group_id').notEmpty().withMessage('group_idは必須です'),
+    param('group_id').notEmpty().withMessage('group_idは必須です'),
     // user_idはJWTから取得するため不要
 ]
 
-// 招待操作用バリデーション（グループリーダー限定）
+// 招待操作用バリデーション（グループリーダー限定、パスパラメータ対応）
 export const validateInviteOperation = [
-    body('group_id').notEmpty().withMessage('group_idは必須です'),
-    body('user_id').notEmpty().withMessage('招待するuser_idは必須です'),
+    param('group_id').notEmpty().withMessage('group_idは必須です'),
+    param('user_id').notEmpty().withMessage('招待するuser_idは必須です'),
 ]
 
-// 招待コード生成用バリデーション
-export const validateInviteCodeGeneration = [body('group_id').notEmpty().withMessage('group_idは必須です')]
+// 招待コード生成用バリデーション（パスパラメータ対応）
+export const validateInviteCodeGeneration = [param('group_id').notEmpty().withMessage('group_idは必須です')]
 
 // 招待コード参加用バリデーション
 export const validateInviteCodeJoin = [
@@ -81,11 +76,11 @@ export const validateInviteCodeJoin = [
         .withMessage('招待コードは英数字のみです'),
 ]
 
-// メンバー退出用バリデーション（新規追加）
-export const validateLeaveGroup = [body('group_id').notEmpty().withMessage('group_idは必須です')]
+// メンバー退出用バリデーション（パスパラメータ対応）
+export const validateLeaveGroup = [param('group_id').notEmpty().withMessage('group_idは必須です')]
 
-// 自己退会用バリデーション
-export const validateSelfLeave = [body('group_id').notEmpty().withMessage('group_idは必須です')]
+// 自己退会用バリデーション（パスパラメータ対応）
+export const validateSelfLeave = [param('group_id').notEmpty().withMessage('group_idは必須です')]
 
 // バリデーションエラー処理
 export const handleValidationErrors = (req: Request, res: Response, next: NextFunction) => {

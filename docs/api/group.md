@@ -42,14 +42,19 @@ Authorization: Bearer <your_jwt_token>
 }
 ```
 
-#### `PUT /api/group/update`
+#### `PUT /api/group/update/:group_id`
 
 グループ情報を更新します（グループリーダー限定）。
+
+**リクエスト例:**
+```bash
+PUT /api/group/update/group_12345
+Authorization: Bearer <your_jwt_token>
+```
 
 **リクエストボディ:**
 ```json
 {
-  "group_id": "group_12345",
   "group_name": "朝活ウォーキング部",
   "max_person": 8,
   "back_image": "walking_group.jpg"
@@ -63,15 +68,14 @@ Authorization: Bearer <your_jwt_token>
 }
 ```
 
-#### `DELETE /api/group/delete`
+#### `DELETE /api/group/delete/:group_id`
 
 グループを削除します（グループリーダー限定）。
 
-**リクエストボディ:**
-```json
-{
-  "group_id": "group_12345"
-}
+**リクエスト例:**
+```bash
+DELETE /api/group/delete/group_12345
+Authorization: Bearer <your_jwt_token>
 ```
 
 **レスポンス:**
@@ -81,15 +85,14 @@ Authorization: Bearer <your_jwt_token>
 }
 ```
 
-#### `DELETE /api/group/admin-delete`
+#### `DELETE /api/group/admin-delete/:group_id`
 
 グループを強制削除します（システム管理者限定）。
 
-**リクエストボディ:**
-```json
-{
-  "group_id": "group_12345"
-}
+**リクエスト例:**
+```bash
+DELETE /api/group/admin-delete/group_12345
+Authorization: Bearer <your_jwt_token>
 ```
 
 **レスポンス:**
@@ -186,15 +189,14 @@ GET /api/group/members/list/group_12345
 ]
 ```
 
-#### `POST /api/group/members/join`
+#### `POST /api/group/members/join/:group_id`
 
 公開グループに自己参加します。
 
-**リクエストボディ:**
-```json
-{
-  "group_id": "group_12345"
-}
+**リクエスト例:**
+```bash
+POST /api/group/members/join/group_12345
+Authorization: Bearer <your_jwt_token>
 ```
 
 **レスポンス:**
@@ -204,16 +206,14 @@ GET /api/group/members/list/group_12345
 }
 ```
 
-#### `POST /api/group/members/invite`
+#### `POST /api/group/members/invite/:group_id/:user_id`
 
 メンバーを直接招待します（グループリーダー限定）。
 
-**リクエストボディ:**
-```json
-{
-  "group_id": "group_12345",
-  "user_id": "user_456"
-}
+**リクエスト例:**
+```bash
+POST /api/group/members/invite/group_12345/user_456
+Authorization: Bearer <your_jwt_token>
 ```
 
 **レスポンス:**
@@ -229,16 +229,14 @@ GET /api/group/members/list/group_12345
 }
 ```
 
-#### `DELETE /api/group/members/remove`
+#### `DELETE /api/group/members/remove/:group_id/:user_id`
 
 メンバーを削除します（グループリーダー限定）。
 
-**リクエストボディ:**
-```json
-{
-  "group_id": "group_12345",
-  "user_id": "user_456"
-}
+**リクエスト例:**
+```bash
+DELETE /api/group/members/remove/group_12345/user_456
+Authorization: Bearer <your_jwt_token>
 ```
 
 **レスポンス:**
@@ -311,15 +309,14 @@ GET /api/group/search?search=ランニング&limit=10
 
 ### 🎫 招待コードシステム
 
-#### `POST /api/group/invite-code/generate`
+#### `POST /api/group/invite-code/generate/:group_id`
 
 招待コードを生成します（グループリーダー限定）。
 
-**リクエストボディ:**
-```json
-{
-  "group_id": "group_12345"
-}
+**リクエスト例:**
+```bash
+POST /api/group/invite-code/generate/group_12345
+Authorization: Bearer <your_jwt_token>
 ```
 
 **レスポンス:**
@@ -477,13 +474,11 @@ const createGroup = async (groupData) => {
 ```javascript
 // 招待コード生成
 const generateInviteCode = async (groupId) => {
-  const response = await fetch('/api/group/invite-code/generate', {
+  const response = await fetch(`/api/group/invite-code/generate/${groupId}`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
       'Authorization': `Bearer ${localStorage.getItem('token')}`
-    },
-    body: JSON.stringify({ group_id: groupId })
+    }
   });
   
   const result = await response.json();
@@ -537,6 +532,23 @@ const getMyGroups = async () => {
   
   const groups = await response.json();
   return groups;
+};
+
+// 公開グループに参加
+const joinGroup = async (groupId) => {
+  const response = await fetch(`/api/group/members/join/${groupId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+  
+  const result = await response.json();
+  if (response.ok) {
+    console.log('参加成功:', result.message);
+  } else {
+    console.error('エラー:', result.error);
+  }
 };
 
 // グループから退会

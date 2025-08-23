@@ -5,7 +5,7 @@ import { UserPayload } from '~/types/UserPayload'
 
 export async function requireGroupLeader(req: Request, res: Response, next: NextFunction): Promise<void> {
     const user = req.user as UserPayload | undefined
-    const { group_id } = req.body
+    const { group_id } = req.params // パスパラメータから取得
 
     console.log('[requireGroupLeader] user:', user)
     console.log('[requireGroupLeader] group_id:', group_id)

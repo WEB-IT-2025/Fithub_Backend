@@ -32,7 +32,8 @@ export const createGroup = asyncHandler(async (req: Request, res: Response) => {
 
 // グループ情報更新（requireGroupLeaderミドルウェアで保護済み）
 export const updateGroup = asyncHandler(async (req: Request, res: Response) => {
-    const { group_id, group_name, max_person, back_image } = req.body
+    const { group_id } = req.params
+    const { group_name, max_person, back_image } = req.body
 
     // ミドルウェアで権限チェック済みなので、直接実行
     const updated = await groupModel.updateGroup(group_id, group_name, max_person, back_image || 'default.jpg')
@@ -45,7 +46,7 @@ export const updateGroup = asyncHandler(async (req: Request, res: Response) => {
 
 // グループ削除（requireGroupLeaderミドルウェアで保護済み）
 export const deleteGroup = asyncHandler(async (req: Request, res: Response) => {
-    const { group_id } = req.body
+    const { group_id } = req.params
 
     // ミドルウェアで権限チェック済みなので、直接実行
     const deleted = await groupModel.deleteGroup(group_id)
@@ -58,7 +59,7 @@ export const deleteGroup = asyncHandler(async (req: Request, res: Response) => {
 
 // グループ削除（requireAdminミドルウェアで保護済み）
 export const adminDeleteGroup = asyncHandler(async (req: Request, res: Response) => {
-    const { group_id } = req.body
+    const { group_id } = req.params
 
     const deleted = await groupModel.deleteGroup(group_id)
     if (!deleted) {
@@ -70,7 +71,7 @@ export const adminDeleteGroup = asyncHandler(async (req: Request, res: Response)
 
 // メンバー削除（requireGroupLeaderミドルウェアで保護済み）
 export const removeGroupMember = asyncHandler(async (req: Request, res: Response) => {
-    const { group_id, user_id } = req.body
+    const { group_id, user_id } = req.params
 
     const group = await groupModel.getGroupById(group_id)
     if (!group) {
@@ -80,7 +81,7 @@ export const removeGroupMember = asyncHandler(async (req: Request, res: Response
     // グループリーダーは自分自身を削除できない
     if (group.admin_id === user_id) {
         return res.status(400).json({
-            error: 'グループリーダーは自分自身を削除できません。',
+            error: 'グループリーダーは自分自身を削除できません。グループを削除してください。',
         })
     }
 
@@ -230,7 +231,7 @@ export const getGroupMembers = asyncHandler(async (req: Request, res: Response) 
 // グループにメンバー追加（自己参加方式）
 export const addGroupMember = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user as UserPayload // JWTから取得
-    const { group_id } = req.body
+    const { group_id } = req.params
 
     const user_id = user.user_id // 自分自身のIDを使用
 
@@ -284,7 +285,7 @@ export const getPublicGroups = asyncHandler(async (req: Request, res: Response) 
 
 // グループメンバー招待（グループリーダー限定）
 export const inviteGroupMember = asyncHandler(async (req: Request, res: Response) => {
-    const { group_id, user_id } = req.body
+    const { group_id, user_id } = req.params
 
     // グループ存在確認
     const group = await groupModel.getGroupById(group_id)
@@ -325,7 +326,7 @@ export const inviteGroupMember = asyncHandler(async (req: Request, res: Response
 
 // 招待コード生成（グループリーダー限定）
 export const generateInviteCode = asyncHandler(async (req: Request, res: Response) => {
-    const { group_id } = req.body
+    const { group_id } = req.params
 
     // グループ存在確認
     const group = await groupModel.getGroupById(group_id)
