@@ -101,13 +101,14 @@ Authorization: Bearer <your_jwt_token>
 
 ### 👥 メンバー管理
 
-#### `GET /api/group/member/userlist/:user_id`
+#### `GET /api/group/member/userlist`
 
-指定ユーザーが所属するグループ一覧を取得します。
+自分が所属するグループ一覧を取得します（トークンベース認証）。
 
 **リクエスト例:**
 ```bash
-GET /api/group/member/userlist/user_123
+GET /api/group/member/userlist
+Authorization: Bearer <your_jwt_token>
 ```
 
 **レスポンス:**
@@ -156,7 +157,8 @@ GET /api/group/members/list/group_12345
       "pet_name": "ポチ",
       "item_id": "pet_001",
       "pet_size": 3,
-      "pet_intimacy": 85
+      "pet_intimacy": 85,
+      "pet_image": "dog_happy.png"
     }
   },
   {
@@ -169,7 +171,8 @@ GET /api/group/members/list/group_12345
       "pet_name": "ミケ",
       "item_id": "pet_002",
       "pet_size": 2,
-      "pet_intimacy": 72
+      "pet_intimacy": 72,
+      "pet_image": "cat_cute.png"
     }
   },
   {
@@ -482,10 +485,23 @@ const displayGroupMembers = async (groupId) => {
     console.log(`${member.user_name} (${member.role})`);
     if (member.main_pet) {
       console.log(`  ペット: ${member.main_pet.pet_name} (親密度: ${member.main_pet.pet_intimacy})`);
+      console.log(`  画像: ${member.main_pet.pet_image}`);
     } else {
       console.log('  ペット: なし');
     }
   });
+};
+
+// 自分のグループ一覧取得
+const getMyGroups = async () => {
+  const response = await fetch('/api/group/member/userlist', {
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+  
+  const groups = await response.json();
+  return groups;
 };
 ```
 
@@ -501,9 +517,8 @@ const GroupScreen = () => {
   
   const loadUserGroups = async () => {
     const token = await AsyncStorage.getItem('token');
-    const userId = await AsyncStorage.getItem('userId');
     
-    const response = await fetch(`/api/group/member/userlist/${userId}`, {
+    const response = await fetch('/api/group/member/userlist', {
       headers: {
         'Authorization': `Bearer ${token}`
       }

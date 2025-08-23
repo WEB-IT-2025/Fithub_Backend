@@ -101,13 +101,38 @@ export const removeGroupMember = asyncHandler(async (req: Request, res: Response
 
     res.status(200).json(result)
 })
-// ユーザーが所属するグループ一覧
+
+// ユーザーが所属するグループ一覧（パスパラメータ版）
 export const getUserGroups = asyncHandler(async (req: Request, res: Response) => {
     const { user_id } = req.params
 
     if (!user_id) {
         return res.status(400).json({ error: 'ユーザーIDが必要です。' })
     }
+
+    const groups = await groupModel.getGroupsByUserId(user_id)
+
+    if (!groups || groups.length === 0) {
+        return res.status(200).json([])
+    }
+
+    const result = groups.map((g) => ({
+        group_id: g.group_id,
+        group_name: g.group_name,
+        max_person: g.max_person, // 定員のみ表示
+        current_count: g.current_count, // 現在の参加人数を追加
+        back_image: g.back_image,
+        is_leader: g.admin_id === user_id,
+        role: g.admin_id === user_id ? 'GROUP_LEADER' : 'MEMBER',
+    }))
+
+    res.status(200).json(result)
+})
+
+// 自分が所属するグループ一覧（トークンベース）
+export const getMyGroups = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user as UserPayload
+    const user_id = user.user_id
 
     const groups = await groupModel.getGroupsByUserId(user_id)
 
@@ -158,6 +183,7 @@ export const getGroupMembers = asyncHandler(async (req: Request, res: Response) 
                     item_id: member.main_pet_item_id,
                     pet_size: member.pet_size || 1,
                     pet_intimacy: member.pet_intimacy || 0,
+                    pet_image: member.pet_image || null,
                 }
             :   null,
     }))

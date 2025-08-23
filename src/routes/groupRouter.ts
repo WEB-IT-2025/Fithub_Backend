@@ -7,8 +7,8 @@ import {
     deleteGroup,
     generateInviteCode,
     getGroupMembers,
+    getMyGroups,
     getPublicGroups,
-    getUserGroups,
     inviteGroupMember,
     joinByInviteCode,
     removeGroupMember,
@@ -60,8 +60,8 @@ router.delete(
     adminDeleteGroup
 )
 
-// 所属グループ一覧取得
-router.get('/member/userlist/:user_id', getUserGroups)
+// 所属グループ一覧取得（トークンベース）
+router.get('/member/userlist', authenticateJWT, getMyGroups)
 
 // 公開グループ検索
 router.get('/search', authenticateJWT, getPublicGroups)
@@ -90,7 +90,7 @@ router.post(
 
 router.post('/invite-code/join', authenticateJWT, validateInviteCodeJoin, handleValidationErrors, joinByInviteCode)
 
-router.get('/members/list/:group_id', getGroupMembers)
+router.get('/members/list/:group_id', authenticateJWT, getGroupMembers)
 
 router.delete(
     '/members/remove',
