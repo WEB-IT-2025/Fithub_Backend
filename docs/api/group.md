@@ -158,7 +158,7 @@ GET /api/group/members/list/group_12345
       "item_id": "pet_001",
       "pet_size": 3,
       "pet_intimacy": 85,
-      "pet_image": "dog_happy.png"
+      "pet_image": "https://example.com/pets/dog_happy.png"
     }
   },
   {
@@ -172,7 +172,7 @@ GET /api/group/members/list/group_12345
       "item_id": "pet_002",
       "pet_size": 2,
       "pet_intimacy": 72,
-      "pet_image": "cat_cute.png"
+      "pet_image": "https://example.com/pets/cat_cute.png"
     }
   },
   {

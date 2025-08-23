@@ -114,7 +114,7 @@ export const groupModel = {
                 up.item_id as main_pet_item_id,
                 up.pet_size,
                 up.pet_intimacy,
-                si.item_image as pet_image
+                si.item_image_url as pet_image
             FROM GROUP_MEMBER gm 
             JOIN USERS u ON gm.user_id = u.user_id 
             LEFT JOIN USERS_PETS up ON u.user_id = up.user_id AND up.user_main_pet = true
