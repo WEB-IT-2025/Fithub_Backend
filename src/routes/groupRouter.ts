@@ -27,7 +27,6 @@ import {
     validateInviteCodeJoin,
     validateInviteOperation,
     validateMemberOperation,
-    validateSelfLeave,
 } from '~/middlewares/validation/groupValidation'
 
 const router = express.Router()
@@ -103,6 +102,6 @@ router.delete(
 )
 
 // 自己退会
-router.delete('/members/leave', authenticateJWT, validateSelfLeave, handleValidationErrors, leaveGroup)
+router.delete('/members/leave/:group_id', authenticateJWT, leaveGroup)
 
 export default router

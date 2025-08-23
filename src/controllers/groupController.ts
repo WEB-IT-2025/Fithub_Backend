@@ -105,7 +105,7 @@ export const removeGroupMember = asyncHandler(async (req: Request, res: Response
 // 自己退会（一般メンバーのみ）
 export const leaveGroup = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user as UserPayload
-    const { group_id } = req.body
+    const { group_id } = req.params
 
     const user_id = user.user_id
 

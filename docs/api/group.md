@@ -253,15 +253,14 @@ GET /api/group/members/list/group_12345
 }
 ```
 
-#### `DELETE /api/group/members/leave`
+#### `DELETE /api/group/members/leave/:group_id`
 
 グループから自己退会します（一般メンバーのみ）。
 
-**リクエストボディ:**
-```json
-{
-  "group_id": "group_12345"
-}
+**リクエスト例:**
+```bash
+DELETE /api/group/members/leave/group_12345
+Authorization: Bearer <your_jwt_token>
 ```
 
 **レスポンス:**
@@ -542,13 +541,11 @@ const getMyGroups = async () => {
 
 // グループから退会
 const leaveGroup = async (groupId) => {
-  const response = await fetch('/api/group/members/leave', {
+  const response = await fetch(`/api/group/members/leave/${groupId}`, {
     method: 'DELETE',
     headers: {
-      'Content-Type': 'application/json',
       'Authorization': `Bearer ${localStorage.getItem('token')}`
-    },
-    body: JSON.stringify({ group_id: groupId })
+    }
   });
   
   const result = await response.json();
