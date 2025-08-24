@@ -41,21 +41,18 @@ router.get('/hourly/:userId', getUserHourlyData)
 router.get('/test/all-exercise-date/:userId', async (req, res) => {
     try {
         const userId = req.params.userId
-        
+
         // Query ALL data for this user from EXERCISE_DATE table
         const db = (await import('~/config/database')).default
-        const [rows] = await db.query(
-            `SELECT * FROM EXERCISE_DATE WHERE user_id = ? ORDER BY timestamp DESC`,
-            [userId]
-        )
-        
+        const [rows] = await db.query(`SELECT * FROM EXERCISE_DATE WHERE user_id = ? ORDER BY timestamp DESC`, [userId])
+
         // Also check today specifically
         const today = new Date().toISOString().split('T')[0]
         const [todayRows] = await db.query(
             `SELECT * FROM EXERCISE_DATE WHERE user_id = ? AND DATE(timestamp) = ? ORDER BY timestamp`,
             [userId, today]
         )
-        
+
         res.json({
             success: true,
             data: {
@@ -65,8 +62,8 @@ router.get('/test/all-exercise-date/:userId', async (req, res) => {
                 today_records: todayRows,
                 today_count: Array.isArray(todayRows) ? todayRows.length : 0,
                 today_date: today,
-                query_time: new Date().toISOString()
-            }
+                query_time: new Date().toISOString(),
+            },
         })
     } catch (error) {
         res.status(500).json({
@@ -82,7 +79,7 @@ router.get('/test/hourly-date/:userId/:date', async (req, res) => {
     try {
         const userId = req.params.userId
         const testDate = req.params.date // Expected format: YYYY-MM-DD
-        
+
         // Query hourly data from database for specific date
         const db = (await import('~/config/database')).default
         const [rows] = await db.query(
@@ -93,7 +90,7 @@ router.get('/test/hourly-date/:userId/:date', async (req, res) => {
              ORDER BY timestamp ASC`,
             [userId, testDate]
         )
-        
+
         // Format data like the real hourly API
         let cumulativeSteps = 0
         const chartData = (rows as { timestamp: Date; steps: number }[]).map((row) => {
@@ -108,7 +105,7 @@ router.get('/test/hourly-date/:userId/:date', async (req, res) => {
                 timestamp: timestamp,
             }
         })
-        
+
         res.json({
             success: true,
             data: {
@@ -117,8 +114,8 @@ router.get('/test/hourly-date/:userId/:date', async (req, res) => {
                 hourly_data: chartData,
                 total_steps: cumulativeSteps,
                 data_points: rows.length,
-                raw_query_results: rows
-            }
+                raw_query_results: rows,
+            },
         })
     } catch (error) {
         res.status(500).json({
@@ -134,31 +131,31 @@ router.get('/test/timezone-debug', async (req, res) => {
     try {
         const now = new Date()
         const { dataSyncService } = await import('~/services/dataSyncService')
-        
+
         const timezoneInfo = {
             current_timestamp: now.toISOString(),
             local_time: now.toString(),
-            
+
             // Different date formats
             iso_date: now.toISOString().split('T')[0], // YYYY-MM-DD
             japan_date_service: dataSyncService.getTodayDate(), // What service uses
             japan_time: now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }),
             japan_date_only: now.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' }),
-            
+
             // Check what we would query for
             database_query_date: new Date().toISOString().split('T')[0],
-            
+
             // Database timestamps examples
             db_examples: [
                 '2025-08-22T15:00:00.000Z', // What we see in DB
                 '2025-08-24T00:00:00.000Z', // Today 00:00 UTC
-                '2025-08-24T15:00:00.000Z'  // Today 15:00 UTC (Japan midnight)
-            ]
+                '2025-08-24T15:00:00.000Z', // Today 15:00 UTC (Japan midnight)
+            ],
         }
-        
+
         res.json({
             success: true,
-            data: timezoneInfo
+            data: timezoneInfo,
         })
     } catch (error) {
         res.status(500).json({
