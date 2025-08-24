@@ -395,9 +395,8 @@ export const dataSyncService = {
             for (const user of activeGoogleUsers) {
                 try {
                     const syncedData = await this.syncUserHourlyExerciseData(user.user_id)
-                    if (syncedData.length > 0) {
-                        successCount++
-                    }
+                    successCount++ // Count as success regardless of data length
+                    console.log(`✅ [HOURLY] Synced data for ${user.user_id}: ${syncedData.length} entries`)
                 } catch (error) {
                     console.error(`❌ [HOURLY] Failed to sync hourly data for user ${user.user_id}:`, error)
                     errorCount++
