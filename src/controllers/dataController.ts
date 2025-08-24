@@ -1,8 +1,9 @@
 // src/controllers/dataController.ts
 import { Request, Response } from 'express'
-import { RowDataPacket } from 'mysql2'
-import db from '~/config/database'
 import { AuthenticatedRequest } from '~/middlewares/authMiddleware'
+import { contributionModel } from '~/models/contributionModel'
+import { exerciseModel } from '~/models/exerciseModel'
+import { hourlyDataModel } from '~/models/hourlyDataModel'
 import { dataSyncService } from '~/services/dataSyncService'
 
 // POST /api/data/sync - Manual sync user data (includes hourly data)
@@ -52,7 +53,7 @@ export const syncUserDataManually = async (req: Request, res: Response) => {
     }
 }
 
-// GET /api/data/hourly - Get user's hourly exercise data for today
+// GET /api/data/hourly/:userId - Get user's hourly exercise data for today
 export const getUserHourlyData = async (req: Request, res: Response) => {
     try {
         const userId = req.params.userId
@@ -63,32 +64,15 @@ export const getUserHourlyData = async (req: Request, res: Response) => {
             })
         }
 
-        // Get today's hourly data from database
-        const hourlyData = await dataSyncService.getTodayHourlyStepsFromDatabase(userId)
-
-        // Calculate cumulative steps for charting with user-friendly time format
-        let cumulativeSteps = 0
-        const chartData = hourlyData.map((data) => {
-            cumulativeSteps += data.steps
-            // Parse as Japan time since timestamp is already in JST format
-            const hour = parseInt(data.timestamp.split(' ')[1].split(':')[0])
-            return {
-                time: `${hour.toString().padStart(2, '0')}:00`, // User-friendly format (00:00, 02:00, etc.)
-                timeValue: hour, // Numeric value for chart libraries
-                steps: data.steps,
-                totalSteps: cumulativeSteps,
-                timestamp: data.timestamp,
-            }
-        })
+        // Use hourlyDataModel to get formatted hourly data
+        const hourlyData = await hourlyDataModel.getFormattedHourlyData(userId)
 
         const response = {
             success: true,
             data: {
                 user_id: userId,
                 date: dataSyncService.getTodayDate(),
-                hourly_data: chartData,
-                total_steps: cumulativeSteps,
-                data_points: hourlyData.length,
+                ...hourlyData,
                 time_range:
                     '2-hour intervals: 00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00',
                 last_updated: new Date().toISOString(),
@@ -381,37 +365,14 @@ export const getUserContributions = async (req: Request, res: Response) => {
             })
         }
 
-        // Get 30 days contribution data
-        const [contributionRows] = (await db.query(
-            `SELECT day, count FROM CONTRIBUTIONS 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-             ORDER BY day DESC`,
-            [userId]
-        )) as RowDataPacket[]
-
-        // Get 7 days total
-        const [weeklyTotal] = (await db.query(
-            `SELECT SUM(CAST(count AS UNSIGNED)) as total_contributions
-             FROM CONTRIBUTIONS 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
-            [userId]
-        )) as RowDataPacket[]
-
-        // Get 30 days total
-        const [monthlyTotal] = (await db.query(
-            `SELECT SUM(CAST(count AS UNSIGNED)) as total_contributions
-             FROM CONTRIBUTIONS 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 30 DAY)`,
-            [userId]
-        )) as RowDataPacket[]
+        // Use contributionModel to get data
+        const contributionData = await contributionModel.getContributionsWithTotals(userId)
 
         const response = {
             success: true,
             data: {
                 user_id: userId,
-                recent_contributions: contributionRows,
-                weekly_total: weeklyTotal[0]?.total_contributions || 0,
-                monthly_total: monthlyTotal[0]?.total_contributions || 0,
+                ...contributionData,
                 last_updated: new Date().toISOString(),
             },
         }
@@ -437,27 +398,14 @@ export const getUserWeeklyData = async (req: Request, res: Response) => {
             })
         }
 
-        // Get 7 days exercise data
-        const [exerciseRows] = (await db.query(
-            `SELECT day, exercise_quantity FROM EXERCISE 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-             ORDER BY day DESC`,
-            [userId]
-        )) as RowDataPacket[]
-
-        // Calculate total steps
-        const totalSteps = exerciseRows.reduce(
-            (sum: number, row: RowDataPacket) => sum + (row.exercise_quantity || 0),
-            0
-        )
+        // Use exerciseModel to get weekly data
+        const exerciseData = await exerciseModel.getExerciseDataWithTotal(userId, 7, '7 days')
 
         const response = {
             success: true,
             data: {
                 user_id: userId,
-                recent_exercise: exerciseRows,
-                total_steps: totalSteps,
-                period: '7 days',
+                ...exerciseData,
                 last_updated: new Date().toISOString(),
             },
         }
@@ -483,27 +431,14 @@ export const getUserMonthlyData = async (req: Request, res: Response) => {
             })
         }
 
-        // Get 30 days exercise data
-        const [exerciseRows] = (await db.query(
-            `SELECT day, exercise_quantity FROM EXERCISE 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-             ORDER BY day DESC`,
-            [userId]
-        )) as RowDataPacket[]
-
-        // Calculate total steps
-        const totalSteps = exerciseRows.reduce(
-            (sum: number, row: RowDataPacket) => sum + (row.exercise_quantity || 0),
-            0
-        )
+        // Use exerciseModel to get monthly data
+        const exerciseData = await exerciseModel.getExerciseDataWithTotal(userId, 30, '30 days')
 
         const response = {
             success: true,
             data: {
                 user_id: userId,
-                recent_exercise: exerciseRows,
-                total_steps: totalSteps,
-                period: '30 days',
+                ...exerciseData,
                 last_updated: new Date().toISOString(),
             },
         }
