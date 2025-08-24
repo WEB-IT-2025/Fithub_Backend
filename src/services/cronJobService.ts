@@ -28,7 +28,7 @@ export const cronJobService = {
             },
             {
                 scheduled: true,
-                timezone: 'Asia/Tokyo', // Adjust timezone as needed
+                timezone: 'UTC', // Server timezone
             }
         )
 
@@ -38,6 +38,7 @@ export const cronJobService = {
     // Sync 2-hourly exercise data every 2 hours
     startHourlySyncJob(): void {
         // Run every 2 hours at 5 minutes past even hours (0:05, 2:05, 4:05, etc.)
+        // Server is UTC, so this runs at UTC times
         cron.schedule(
             '5 */2 * * *',
             async () => {
@@ -46,7 +47,7 @@ export const cronJobService = {
             },
             {
                 scheduled: true,
-                timezone: 'Asia/Tokyo',
+                timezone: 'UTC', // Server timezone
             }
         )
 
