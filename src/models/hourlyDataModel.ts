@@ -50,7 +50,7 @@ export const hourlyDataModel = {
                 // MySQL CONVERT_TZ returns JST time but as UTC Date object
                 // So getUTCHours() gives us the correct JST hour
                 hour = data.timestamp.getUTCHours()
-                
+
                 // Format as JST string (the UTC time IS the JST time)
                 const year = data.timestamp.getUTCFullYear()
                 const month = String(data.timestamp.getUTCMonth() + 1).padStart(2, '0')
@@ -58,7 +58,7 @@ export const hourlyDataModel = {
                 const hours = String(data.timestamp.getUTCHours()).padStart(2, '0')
                 const minutes = String(data.timestamp.getUTCMinutes()).padStart(2, '0')
                 const seconds = String(data.timestamp.getUTCSeconds()).padStart(2, '0')
-                
+
                 timestampStr = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
             } else {
                 // If it's already a string (JST format from CONVERT_TZ)
@@ -77,7 +77,7 @@ export const hourlyDataModel = {
         })
 
         // Total steps is the highest cumulative value (last entry)
-        const totalSteps = hourlyData.length > 0 ? Math.max(...hourlyData.map(d => d.steps)) : 0
+        const totalSteps = hourlyData.length > 0 ? Math.max(...hourlyData.map((d) => d.steps)) : 0
 
         return {
             hourly_data: chartData,

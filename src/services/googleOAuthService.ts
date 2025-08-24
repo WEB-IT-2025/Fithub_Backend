@@ -327,22 +327,20 @@ export const googleOAuthService = {
 
             // Calculate cumulative steps for 2-hour intervals
             const cumulativeStepsMap = new Map<number, number>()
-            
+
             // First, calculate cumulative sum up to each even hour
             for (let hour = 0; hour <= 22; hour += 2) {
                 let cumulativeSteps = 0
-                
+
                 // Sum all steps from hour 0 to current hour + 1 (inclusive)
                 for (let h = 0; h <= hour + 1 && h < 24; h++) {
                     cumulativeSteps += hourlyStepsMap.get(h) || 0
                 }
-                
+
                 cumulativeStepsMap.set(hour, cumulativeSteps)
 
                 if (cumulativeSteps > 0) {
-                    console.log(
-                        `🔢 [Google Fit] Cumulative up to ${hour + 1}:59 = ${cumulativeSteps} steps`
-                    )
+                    console.log(`🔢 [Google Fit] Cumulative up to ${hour + 1}:59 = ${cumulativeSteps} steps`)
                 }
             }
 

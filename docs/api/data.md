@@ -130,10 +130,15 @@
 #### `GET /api/data/hourly/:userId`
 
 **認証**: 不要  
-**説明**: 今日の2時間毎の詳細な歩数データを取得。日中の歩数推移をグラフ表示するために使用
+**説明**: 今日の2時間毎の累積歩数データを取得。Google Fitスタイルの累積グラフ表示に最適
 
 **URLパラメータ:**
 - `userId` (string): 対象ユーザーのID
+
+**データ形式の説明:**
+- **累積データ**: 各時間の`steps`は00:00からその時間までの**累積歩数**
+- **2時間間隔**: 00:00, 02:00, 04:00, ..., 22:00（12個のデータポイント）
+- **JST timezone**: すべてのタイムスタンプは日本標準時
 
 **レスポンス例:**
 ```json
@@ -146,37 +151,69 @@
       {
         "time": "00:00",
         "timeValue": 0,
-        "steps": 22,
-        "totalSteps": 22,
+        "steps": 0,
+        "totalSteps": 0,
         "timestamp": "2025-08-24 00:00:00"
       },
       {
-        "time": "02:00",
-        "timeValue": 2,
-        "steps": 0,
-        "totalSteps": 22,
-        "timestamp": "2025-08-24 02:00:00"
+        "time": "06:00",
+        "timeValue": 6,
+        "steps": 150,
+        "totalSteps": 150,
+        "timestamp": "2025-08-24 06:00:00"
       },
       {
-        "time": "14:00",
-        "timeValue": 14,
-        "steps": 24,
-        "totalSteps": 90,
-        "timestamp": "2025-08-24 14:00:00"
+        "time": "08:00",
+        "timeValue": 8,
+        "steps": 320,
+        "totalSteps": 320,
+        "timestamp": "2025-08-24 08:00:00"
       },
       {
-        "time": "22:00",
-        "timeValue": 22,
-        "steps": 0,
-        "totalSteps": 90,
-        "timestamp": "2025-08-24 22:00:00"
+        "time": "12:00",
+        "timeValue": 12,
+        "steps": 1250,
+        "totalSteps": 1250,
+        "timestamp": "2025-08-24 12:00:00"
+      },
+      {
+        "time": "18:00",
+        "timeValue": 18,
+        "steps": 6800,
+        "totalSteps": 6800,
+        "timestamp": "2025-08-24 18:00:00"
       }
     ],
-    "total_steps": 90,
+    "total_steps": 6800,
     "data_points": 12,
     "time_range": "2-hour intervals: 00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00",
     "last_updated": "2025-08-24T12:30:45.123Z"
   }
+}
+```
+
+**フィールド説明:**
+- `steps`: 00:00からその時間までの**累積歩数**（例: 08:00の320は00:00-09:59の合計）
+- `totalSteps`: `steps`と同じ値（累積データのため）
+- `time`: 表示用時間（"08:00"形式）
+- `timeValue`: チャートライブラリ用数値（8）
+- `timestamp`: 完全なタイムスタンプ（JST）
+
+**チャート表示のヒント:**
+```javascript
+// Google Fitスタイルの累積グラフ
+const chartData = hourlyData.map(d => ({
+  x: d.timeValue,
+  y: d.steps // これが累積値なので直接プロット可能
+}))
+
+// 時間間隔でのステップ数を計算したい場合
+const intervalSteps = []
+for (let i = 1; i < hourlyData.length; i++) {
+  intervalSteps.push({
+    time: hourlyData[i].time,
+    steps: hourlyData[i].steps - hourlyData[i-1].steps
+  })
 }
 ```
 
