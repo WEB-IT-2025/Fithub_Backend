@@ -61,4 +61,54 @@ export const exerciseModel = {
             steps: Number(row.steps),
         }))
     },
+
+    /**
+     * Get user's exercise data for a specific period (in days)
+     */
+    async getExerciseData(userId: string, days: number): Promise<ExerciseRow[]> {
+        const [rows] = await db.query<ExerciseRow[]>(
+            `SELECT day, exercise_quantity FROM EXERCISE 
+             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL ? DAY)
+             ORDER BY day DESC`,
+            [userId, days]
+        )
+        return rows
+    },
+
+    /**
+     * Get total steps for a specific period
+     */
+    async getTotalSteps(userId: string, days: number): Promise<number> {
+        const [rows] = await db.query<RowDataPacket[]>(
+            `SELECT SUM(exercise_quantity) as total_steps
+             FROM EXERCISE 
+             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
+            [userId, days]
+        )
+        return rows[0]?.total_steps || 0
+    },
+
+    /**
+     * Get exercise data with total for specific period
+     */
+    async getExerciseDataWithTotal(
+        userId: string,
+        days: number,
+        period: string
+    ): Promise<{
+        recent_exercise: ExerciseRow[]
+        total_steps: number
+        period: string
+    }> {
+        const [recent_exercise, total_steps] = await Promise.all([
+            this.getExerciseData(userId, days),
+            this.getTotalSteps(userId, days),
+        ])
+
+        return {
+            recent_exercise,
+            total_steps,
+            period,
+        }
+    },
 }
