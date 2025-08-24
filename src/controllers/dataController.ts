@@ -5,7 +5,6 @@ import db from '~/config/database'
 import { AuthenticatedRequest } from '~/middlewares/authMiddleware'
 import { dataSyncService } from '~/services/dataSyncService'
 
-// GET /api/data/user - Get user's exercise and contribution data
 // POST /api/data/sync - Manual sync user data (includes hourly data)
 export const syncUserDataManually = async (req: Request, res: Response) => {
     try {
