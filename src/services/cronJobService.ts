@@ -20,15 +20,16 @@ export const cronJobService = {
     // Sync user data every 15 minutes
     startDataSyncJob(): void {
         // Run every 15 minutes: 0,15,30,45 minutes of every hour
+        // According to Japan Standard Time (JST)
         cron.schedule(
             '0,15,30,45 * * * *',
             async () => {
-                console.log('🔄 [CRON] Starting 15-minute data sync...')
+                console.log('🔄 [CRON] Starting 15-minute data sync... (JST)')
                 await dataSyncService.syncAllUsersData()
             },
             {
                 scheduled: true,
-                timezone: 'UTC', // Server timezone
+                timezone: 'Asia/Tokyo', // Japan timezone for business logic
             }
         )
 
@@ -38,16 +39,16 @@ export const cronJobService = {
     // Sync 2-hourly exercise data every 2 hours
     startHourlySyncJob(): void {
         // Run every 2 hours at 5 minutes past even hours (0:05, 2:05, 4:05, etc.)
-        // Server is UTC, so this runs at UTC times
+        // According to Japan Standard Time (JST)
         cron.schedule(
             '5 */2 * * *',
             async () => {
-                console.log('📊 [CRON] Starting 2-hourly exercise data sync...')
+                console.log('📊 [CRON] Starting 2-hourly exercise data sync... (JST)')
                 await dataSyncService.syncAllUsersHourlyData()
             },
             {
                 scheduled: true,
-                timezone: 'UTC', // Server timezone
+                timezone: 'Asia/Tokyo', // Japan timezone for business logic
             }
         )
 
@@ -168,7 +169,7 @@ export const cronJobService = {
         const [rows] = await db.query(
             `SELECT user_id, user_name, google_refresh_token 
              FROM USERS 
-             WHERE google_token_expires_at <= DATE_ADD(NOW(), INTERVAL 35 MINUTE)
+             WHERE google_token_expires_at <= DATE_ADD(CONVERT_TZ(NOW(), '+00:00', '+09:00'), INTERVAL 35 MINUTE)
                AND google_refresh_token IS NOT NULL 
                AND google_refresh_token != ''`
         )

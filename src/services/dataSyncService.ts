@@ -346,13 +346,13 @@ export const dataSyncService = {
     // Get today's hourly exercise data from database
     async getTodayHourlyStepsFromDatabase(userId: string): Promise<{ timestamp: string; steps: number }[]> {
         try {
-            const today = this.getTodayDate()
+            const today = this.getTodayDate() // JST date (e.g., "2025-08-24")
 
             const [rows] = await db.query(
                 `SELECT timestamp, steps 
                  FROM EXERCISE_DATE 
                  WHERE user_id = ? 
-                   AND DATE(timestamp) = ?
+                   AND DATE(CONVERT_TZ(timestamp, '+00:00', '+09:00')) = ?
                  ORDER BY timestamp ASC`,
                 [userId, today]
             )
