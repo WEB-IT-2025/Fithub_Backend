@@ -29,8 +29,8 @@ export const hourlyDataModel = {
 
         // Filter future hours in application (adjust for JST)
         const now = new Date()
-        const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000)) // Add 9 hours for JST
-        
+        const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000) // Add 9 hours for JST
+
         const filteredRows = rows.filter((row) => {
             const timestamp = typeof row.timestamp === 'string' ? new Date(row.timestamp) : row.timestamp
             // Database timestamp is already JST, so compare with JST now

@@ -136,9 +136,11 @@
 - `userId` (string): 対象ユーザーのID
 
 **データ形式の説明:**
-- **累積データ**: 各時間の`steps`は00:00からその時間までの**累積歩数**
-- **2時間間隔**: 00:00, 02:00, 04:00, ..., 22:00（12個のデータポイント）
+- **インターバルデータ**: 各時間の`steps`はその2時間間隔での**歩数増分**
+- **累積データ**: `totalSteps`は00:00からその時間までの**累積歩数**
+- **2時間間隔**: 00:00, 02:00, 04:00, ..., 22:00（最大12個のデータポイント）
 - **JST timezone**: すべてのタイムスタンプは日本標準時
+- **未来データ防止**: 現在時刻より後のデータは返されません
 
 **レスポンス例:**
 ```json
@@ -156,64 +158,92 @@
         "timestamp": "2025-08-24 00:00:00"
       },
       {
+        "time": "02:00",
+        "timeValue": 2,
+        "steps": 0,
+        "totalSteps": 0,
+        "timestamp": "2025-08-24 02:00:00"
+      },
+      {
+        "time": "04:00",
+        "timeValue": 4,
+        "steps": 5,
+        "totalSteps": 5,
+        "timestamp": "2025-08-24 04:00:00"
+      },
+      {
         "time": "06:00",
         "timeValue": 6,
-        "steps": 150,
-        "totalSteps": 150,
+        "steps": 5,
+        "totalSteps": 10,
         "timestamp": "2025-08-24 06:00:00"
       },
       {
         "time": "08:00",
         "timeValue": 8,
-        "steps": 320,
-        "totalSteps": 320,
+        "steps": 6,
+        "totalSteps": 16,
         "timestamp": "2025-08-24 08:00:00"
+      },
+      {
+        "time": "10:00",
+        "timeValue": 10,
+        "steps": 14,
+        "totalSteps": 30,
+        "timestamp": "2025-08-24 10:00:00"
       },
       {
         "time": "12:00",
         "timeValue": 12,
-        "steps": 1250,
-        "totalSteps": 1250,
+        "steps": 7,
+        "totalSteps": 37,
         "timestamp": "2025-08-24 12:00:00"
-      },
-      {
-        "time": "18:00",
-        "timeValue": 18,
-        "steps": 6800,
-        "totalSteps": 6800,
-        "timestamp": "2025-08-24 18:00:00"
       }
     ],
-    "total_steps": 6800,
-    "data_points": 12,
+    "total_steps": 37,
+    "data_points": 7,
     "time_range": "2-hour intervals: 00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00",
-    "last_updated": "2025-08-24T12:30:45.123Z"
+    "last_updated": "2025-08-24T04:35:57.719Z"
   }
 }
 ```
 
 **フィールド説明:**
-- `steps`: 00:00からその時間までの**累積歩数**（例: 08:00の320は00:00-09:59の合計）
-- `totalSteps`: `steps`と同じ値（累積データのため）
+- `steps`: その2時間間隔での**歩数増分**（例: 08:00の6は06:00-07:59の歩数）
+- `totalSteps`: 00:00からその時間までの**累積歩数**（例: 08:00の16は00:00-07:59の合計）
 - `time`: 表示用時間（"08:00"形式）
 - `timeValue`: チャートライブラリ用数値（8）
 - `timestamp`: 完全なタイムスタンプ（JST）
+- `data_points`: 実際に返されるデータポイント数（未来データ除外後）
 
 **チャート表示のヒント:**
 ```javascript
-// Google Fitスタイルの累積グラフ
-const chartData = hourlyData.map(d => ({
+// 累積歩数グラフ（Google Fitスタイル）
+const cumulativeChart = hourlyData.map(d => ({
   x: d.timeValue,
-  y: d.steps // これが累積値なので直接プロット可能
+  y: d.totalSteps // 累積値を使用
 }))
 
-// 時間間隔でのステップ数を計算したい場合
-const intervalSteps = []
-for (let i = 1; i < hourlyData.length; i++) {
-  intervalSteps.push({
-    time: hourlyData[i].time,
-    steps: hourlyData[i].steps - hourlyData[i-1].steps
-  })
+// インターバル歩数グラフ（各時間帯の活動量）
+const intervalChart = hourlyData.map(d => ({
+  x: d.timeValue,
+  y: d.steps // インターバル値を使用
+}))
+
+// 両方のデータを同時に表示
+const combinedChart = {
+  datasets: [
+    {
+      label: '累積歩数',
+      data: hourlyData.map(d => ({ x: d.timeValue, y: d.totalSteps })),
+      type: 'line'
+    },
+    {
+      label: '時間別歩数',
+      data: hourlyData.map(d => ({ x: d.timeValue, y: d.steps })),
+      type: 'bar'
+    }
+  ]
 }
 ```
 
