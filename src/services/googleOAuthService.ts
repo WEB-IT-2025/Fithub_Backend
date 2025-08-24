@@ -349,6 +349,10 @@ export const googleOAuthService = {
                     timestamp: `${japanDateStr} ${timeString}:00`,
                     steps: steps,
                 })
+
+                if (steps > 0) {
+                    console.log(`✅ [Google Fit] Hour ${hour}:00 = ${steps} steps`)
+                }
             }
 
             console.log(`✅ [Google Fit] Generated ${hourlyData.length} 2-hour interval data points`)

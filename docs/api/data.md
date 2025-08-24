@@ -1,209 +1,193 @@
 # データAPI
 
 ## 概要
-データAPIは、ユーザーのフィットネスデータ（Google Fit歩数）とGitHubコントリビューションの取得・同期を可能にします。また、日中の詳細な歩数推移を2時間毎に追跡する機能も提供します。すべてのエンドポイントはJWT認証が必要です。
+データAPIは、ユーザーのフィットネスデータ（Google Fit歩数）とGitHubコントリビューションの取得・同期を可能にします。また、日中の詳細な歩数推移を2時間毎に追跡する機能も提供します。
 
-## 認証必須
-```
-Authorization: Bearer <your_jwt_token>
-```
+## API分類
+
+### パブリックAPI（認証不要）
+- **ユーザーID必須**: URLパラメータでuser_idを指定
+- **用途**: フロントエンドの公開表示、埋め込み表示
+- **制限**: user_idを知っている場合のみアクセス可能
+
+### 認証必須API
+- **JWT認証**: `Authorization: Bearer <your_jwt_token>`
+- **用途**: データ同期、管理機能
 
 ## エンドポイント
 
-### 📊 ユーザーデータ取得
+## 📊 パブリック データ取得API
 
-#### `GET /api/data/user`
+### 🎯 ユーザー コントリビューション取得
 
-今日のデータと過去7日間を含むユーザーの詳細データを取得します。
+#### `GET /api/data/contribution/:userId`
 
-**ヘッダー:**
-```
-Authorization: Bearer <your_jwt_token>
-Content-Type: application/json
-```
+**認証**: 不要  
+**説明**: ユーザーのGitHubコントリビューション形式のデータ（30日間）と週間・月間の合計を取得
 
-**レスポンス:**
+**URLパラメータ:**
+- `userId` (string): 対象ユーザーのID
+
+**レスポンス例:**
 ```json
 {
   "success": true,
   "data": {
-    "user_id": "google_123456789",
-    "today": {
-      "date": "2025-07-07",
-      "steps": 8543,
-      "contributions": 3
-    },
-    "recent_exercise": [
-      {
-        "day": "2025-07-07T00:00:00.000Z",
-        "exercise_quantity": 8543
-      },
-      {
-        "day": "2025-07-06T00:00:00.000Z", 
-        "exercise_quantity": 12000
-      },
-      {
-        "day": "2025-07-05T00:00:00.000Z",
-        "exercise_quantity": 7200
-      }
-    ],
+    "user_id": "user_1752561583127_xengpxnh1",
     "recent_contributions": [
       {
-        "day": "2025-07-07T00:00:00.000Z",
-        "count": "3"
-      },
-      {
-        "day": "2025-07-06T00:00:00.000Z",
+        "day": "2025-08-24T00:00:00.000Z",
         "count": "5"
       },
       {
-        "day": "2025-07-05T00:00:00.000Z", 
-        "count": "2"
+        "day": "2025-08-23T00:00:00.000Z",
+        "count": "3"
+      },
+      {
+        "day": "2025-08-22T00:00:00.000Z",
+        "count": "8"
       }
     ],
-    "last_updated": "2025-07-07T10:30:45.123Z"
+    "weekly_total": 18,
+    "monthly_total": 67,
+    "last_updated": "2025-08-24T10:30:45.123Z"
   }
 }
 ```
 
-### 📈 ユーザー統計取得
+### � ユーザー 週間データ取得
 
-#### `GET /api/data/stats`
+#### `GET /api/data/weekly/:userId`
 
-週間・月間のユーザー統計サマリーを取得します。
+**認証**: 不要  
+**説明**: ユーザーの過去7日間の歩数データと合計を取得
 
-**ヘッダー:**
-```
-Authorization: Bearer <your_jwt_token>
-Content-Type: application/json
-```
+**URLパラメータ:**
+- `userId` (string): 対象ユーザーのID
 
-**レスポンス:**
+**レスポンス例:**
 ```json
 {
   "success": true,
   "data": {
-    "user_id": "google_123456789",
-    "weekly": {
-      "total_steps": 65432,
-      "total_contributions": 18,
-      "active_days": 6
-    },
-    "monthly": {
-      "total_steps": 234567,
-      "total_contributions": 72,
-      "active_days": 28
-    },
-    "last_updated": "2025-07-07T10:30:45.123Z"
+    "user_id": "user_1752561583127_xengpxnh1",
+    "recent_exercise": [
+      {
+        "day": "2025-08-24T00:00:00.000Z",
+        "exercise_quantity": 8543
+      },
+      {
+        "day": "2025-08-23T00:00:00.000Z",
+        "exercise_quantity": 12000
+      },
+      {
+        "day": "2025-08-22T00:00:00.000Z",
+        "exercise_quantity": 7200
+      }
+    ],
+    "total_steps": 52743,
+    "period": "7 days",
+    "last_updated": "2025-08-24T10:30:45.123Z"
   }
 }
 ```
 
-**統計の説明:**
-- `total_steps`: 期間内の総歩数
-- `total_contributions`: GitHubコントリビューション総数
-- `active_days`: アクティブな日数（最低1歩記録のある日）
+### � ユーザー 月間データ取得
 
-### 🔄 手動データ同期
+#### `GET /api/data/monthly/:userId`
 
-#### `POST /api/data/sync`
+**認証**: 不要  
+**説明**: ユーザーの過去30日間の歩数データと合計を取得
 
-Google FitとGitHubから即座にデータを手動同期します。
+**URLパラメータ:**
+- `userId` (string): 対象ユーザーのID
 
-**ヘッダー:**
-```
-Authorization: Bearer <your_jwt_token>
-Content-Type: application/json
-```
-
-**リクエストボディ:** (空)
-
-**レスポンス:**
+**レスポンス例:**
 ```json
 {
   "success": true,
-  "message": "Data synced successfully",
   "data": {
-    "user_id": "google_123456789",
-    "synced_at": "2025-07-07T10:30:45.123Z",
-    "exercise_data": {
-      "date": "2025-07-07",
-      "steps": 8543,
-      "source": "google_fit",
-      "status": "updated"
-    },
-    "contribution_data": {
-      "date": "2025-07-07", 
-      "contributions": 3,
-      "source": "github_api",
-      "status": "updated"
-    }
+    "user_id": "user_1752561583127_xengpxnh1", 
+    "recent_exercise": [
+      {
+        "day": "2025-08-24T00:00:00.000Z",
+        "exercise_quantity": 8543
+      },
+      {
+        "day": "2025-08-23T00:00:00.000Z", 
+        "exercise_quantity": 12000
+      }
+    ],
+    "total_steps": 234567,
+    "period": "30 days",
+    "last_updated": "2025-08-24T10:30:45.123Z"
   }
 }
 ```
 
 ### 📈 時間別歩数データ取得
 
-#### `GET /api/data/hourly`
+#### `GET /api/data/hourly/:userId`
 
-今日の2時間毎の詳細な歩数データを取得します。日中の歩数推移をグラフ表示するために使用できます。
+**認証**: 不要  
+**説明**: 今日の2時間毎の詳細な歩数データを取得。日中の歩数推移をグラフ表示するために使用
 
-**ヘッダー:**
-```
-Authorization: Bearer <your_jwt_token>
-Content-Type: application/json
-```
+**URLパラメータ:**
+- `userId` (string): 対象ユーザーのID
 
-**レスポンス:**
+**レスポンス例:**
 ```json
 {
   "success": true,
   "data": {
-    "user_id": "google_123456789",
-    "date": "2025-08-14",
+    "user_id": "user_1752561583127_xengpxnh1",
+    "date": "2025-08-24",
     "hourly_data": [
       {
         "time": "00:00",
         "timeValue": 0,
         "steps": 22,
         "totalSteps": 22,
-        "timestamp": "2025-08-14 00:00:00"
+        "timestamp": "2025-08-24 00:00:00"
       },
       {
         "time": "02:00",
         "timeValue": 2,
         "steps": 0,
         "totalSteps": 22,
-        "timestamp": "2025-08-14 02:00:00"
+        "timestamp": "2025-08-24 02:00:00"
       },
       {
         "time": "14:00",
         "timeValue": 14,
         "steps": 24,
         "totalSteps": 90,
-        "timestamp": "2025-08-14 14:00:00"
+        "timestamp": "2025-08-24 14:00:00"
       },
       {
         "time": "22:00",
         "timeValue": 22,
         "steps": 0,
         "totalSteps": 90,
-        "timestamp": "2025-08-14 22:00:00"
+        "timestamp": "2025-08-24 22:00:00"
       }
     ],
     "total_steps": 90,
     "data_points": 12,
     "time_range": "2-hour intervals: 00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00",
-    "last_updated": "2025-08-14T12:30:45.123Z"
+    "last_updated": "2025-08-24T12:30:45.123Z"
   }
 }
 ```
 
-### 🔄 時間別データ手動同期
+## 🔐 認証必須API
 
-#### `POST /api/data/sync/hourly`
+### 🔄 手動データ同期
 
-現在のユーザーの時間別歩数データを手動でGoogle Fitから同期します。
+#### `POST /api/data/sync`
+
+**認証**: 必要  
+**説明**: Google FitとGitHubから即座にデータを手動同期
 
 **ヘッダー:**
 ```
@@ -217,23 +201,26 @@ Content-Type: application/json
 ```json
 {
   "success": true,
-  "message": "Hourly data synced successfully",
+  "message": "Data synced successfully (including hourly data)",
   "data": {
     "user_id": "google_123456789",
-    "synced_at": "2025-08-14T14:15:30.456Z",
-    "hourly_entries": 8,
-    "synced_data": [
-      {
-        "user_id": "google_123456789",
-        "timestamp": "2025-08-14 00:00:00",
-        "steps": 0
-      },
-      {
-        "user_id": "google_123456789", 
-        "timestamp": "2025-08-14 02:00:00",
-        "steps": 243
-      }
-    ]
+    "synced_at": "2025-08-24T10:30:45.123Z",
+    "exercise_data": {
+      "date": "2025-08-24",
+      "steps": 8543,
+      "source": "google_fit",
+      "status": "updated"
+    },
+    "contribution_data": {
+      "date": "2025-08-24", 
+      "contributions": 3,
+      "source": "github_api",
+      "status": "updated"
+    },
+    "hourly_data": {
+      "entries": 8,
+      "data": [...]
+    }
   }
 }
 ```
@@ -309,171 +296,323 @@ Content-Type: application/json
 
 ## 💡 使用例
 
-### フロントエンド統合例
+### フロントエンド統合例（パブリックAPI）
 
 ```javascript
 class FithubDataService {
-  constructor(token) {
-    this.token = token;
+  constructor() {
     this.baseURL = 'http://localhost:3000/api/data';
   }
 
-  async getUserData() {
-    const response = await fetch(`${this.baseURL}/user`, {
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+  // パブリックAPI（認証不要）
+  async getUserContributions(userId) {
+    const response = await fetch(`${this.baseURL}/contribution/${userId}`);
     
     if (!response.ok) {
-      throw new Error('ユーザーデータの取得に失敗しました');
+      throw new Error('コントリビューションデータの取得に失敗しました');
     }
     
     return await response.json();
   }
 
-  async getUserStats() {
-    const response = await fetch(`${this.baseURL}/stats`, {
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+  async getUserWeeklyData(userId) {
+    const response = await fetch(`${this.baseURL}/weekly/${userId}`);
+    
+    if (!response.ok) {
+      throw new Error('週間データの取得に失敗しました');
+    }
     
     return await response.json();
   }
 
-  async syncData() {
+  async getUserMonthlyData(userId) {
+    const response = await fetch(`${this.baseURL}/monthly/${userId}`);
+    
+    if (!response.ok) {
+      throw new Error('月間データの取得に失敗しました');
+    }
+    
+    return await response.json();
+  }
+
+  async getUserHourlyData(userId) {
+    const response = await fetch(`${this.baseURL}/hourly/${userId}`);
+    
+    if (!response.ok) {
+      throw new Error('時間別データの取得に失敗しました');  
+    }
+    
+    return await response.json();
+  }
+
+  // 認証が必要なAPI
+  async syncData(token) {
     const response = await fetch(`${this.baseURL}/sync`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    return await response.json();
-  }
-}
-
-// 使用方法
-const dataService = new FithubDataService(userToken);
-
-// ダッシュボードデータ読み込み
-async function loadDashboard() {
-  try {
-    const [userData, userStats] = await Promise.all([
-      dataService.getUserData(),
-      dataService.getUserStats()
-    ]);
-
-    updateUI(userData.data, userStats.data);
-  } catch (error) {
-    console.error('ダッシュボード読み込み失敗:', error);
-  }
-}
-
-// 手動同期ボタン
-async function handleManualSync() {
-  try {
-    setLoading(true);
-    const result = await dataService.syncData();
-    
-    if (result.success) {
-      showNotification('データ同期が完了しました！');
-      await loadDashboard(); // データを再読み込み
-    }
-  } catch (error) {
-    showNotification('同期に失敗しました。再試行してください。');
-  } finally {
-    setLoading(false);
-  }
-}
-```
-
-### モバイルアプリ統合
-
-```javascript
-// React Native例
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-class MobileFithubService {
-  async getUserData() {
-    const token = await AsyncStorage.getItem('fithub_token');
-    
-    const response = await fetch('http://localhost:3000/api/data/user', {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     });
-
-    if (response.status === 401) {
-      // トークン期限切れ、ログインにリダイレクト
-      await AsyncStorage.removeItem('fithub_token');
-      NavigationService.navigate('Login');
-      return;
-    }
-
+    
     return await response.json();
   }
+}
 
-  async syncWithRetry(maxRetries = 3) {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        const result = await this.syncData();
-        return result;
-      } catch (error) {
-        if (i === maxRetries - 1) throw error;
-        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-      }
-    }
+// 使用方法（パブリック表示）
+const dataService = new FithubDataService();
+
+// ユーザープロフィール表示
+async function loadUserProfile(userId) {
+  try {
+    const [contributions, weeklyData, monthlyData, hourlyData] = await Promise.all([
+      dataService.getUserContributions(userId),
+      dataService.getUserWeeklyData(userId),
+      dataService.getUserMonthlyData(userId),
+      dataService.getUserHourlyData(userId)
+    ]);
+
+    updateProfileUI({
+      contributions: contributions.data,
+      weekly: weeklyData.data,
+      monthly: monthlyData.data,
+      hourly: hourlyData.data
+    });
+  } catch (error) {
+    console.error('プロフィール読み込み失敗:', error);
   }
 }
+
+// チャート表示用
+function createStepsChart(hourlyData) {
+  return {
+    labels: hourlyData.hourly_data.map(d => d.time),
+    datasets: [{
+      label: '累積歩数',
+      data: hourlyData.hourly_data.map(d => d.totalSteps),
+      borderColor: 'rgb(75, 192, 192)',
+      tension: 0.1
+    }, {
+      label: '2時間毎歩数',
+      data: hourlyData.hourly_data.map(d => d.steps),
+      backgroundColor: 'rgba(54, 162, 235, 0.2)',
+      type: 'bar'
+    }]
+  };
+}
+
+// GitHub風コントリビューション表示
+function createContributionGrid(contributionData) {
+  const grid = contributionData.recent_contributions.map(day => ({
+    date: new Date(day.day).toISOString().split('T')[0],
+    count: parseInt(day.count),
+    level: getContributionLevel(parseInt(day.count)) // 0-4のレベル
+  }));
+  
+  return grid;
+}
+
+function getContributionLevel(count) {
+  if (count === 0) return 0;
+  if (count <= 2) return 1;
+  if (count <= 5) return 2;  
+  if (count <= 8) return 3;
+  return 4;
+}
+```
+
+### React コンポーネント例
+
+```jsx
+import React, { useState, useEffect } from 'react';
+
+const UserProfile = ({ userId }) => {
+  const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadUserProfile();
+  }, [userId]);
+
+  const loadUserProfile = async () => {
+    try {
+      setLoading(true);
+      const dataService = new FithubDataService();
+      
+      const [contributions, weekly, monthly, hourly] = await Promise.all([
+        dataService.getUserContributions(userId),
+        dataService.getUserWeeklyData(userId),
+        dataService.getUserMonthlyData(userId),
+        dataService.getUserHourlyData(userId)
+      ]);
+
+      setProfileData({
+        contributions: contributions.data,
+        weekly: weekly.data,
+        monthly: monthly.data,
+        hourly: hourly.data
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <div>読み込み中...</div>;
+  if (error) return <div>エラー: {error}</div>;
+  if (!profileData) return <div>データが見つかりません</div>;
+
+  return (
+    <div className="user-profile">
+      <h2>ユーザー: {userId}</h2>
+      
+      <div className="stats-grid">
+        <div className="stat-card">
+          <h3>今週</h3>
+          <p>{profileData.weekly.total_steps.toLocaleString()} 歩</p>
+        </div>
+        <div className="stat-card">
+          <h3>今月</h3>
+          <p>{profileData.monthly.total_steps.toLocaleString()} 歩</p>
+        </div>
+        <div className="stat-card">
+          <h3>週間コントリビューション</h3>
+          <p>{profileData.contributions.weekly_total} 回</p>
+        </div>
+        <div className="stat-card">
+          <h3>月間コントリビューション</h3>
+          <p>{profileData.contributions.monthly_total} 回</p>
+        </div>
+      </div>
+      
+      <div className="charts">
+        <div className="chart-section">
+          <h3>今日の歩数推移</h3>
+          <HourlyStepsChart data={profileData.hourly} />
+        </div>
+        
+        <div className="chart-section">
+          <h3>週間歩数</h3>
+          <WeeklyStepsChart data={profileData.weekly} />
+        </div>
+        
+        <div className="chart-section">
+          <h3>コントリビューション</h3>
+          <ContributionGrid data={profileData.contributions} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default UserProfile;
 ```
 
 ## 📱 データ可視化のヒント
 
 ### チャート統合
 ```javascript
-// チャート用データフォーマット
-function formatChartData(userData) {
-  const exerciseData = userData.recent_exercise.map(item => ({
+// 時間別歩数チャート用データフォーマット
+function formatHourlyChartData(hourlyData) {
+  return {
+    labels: hourlyData.hourly_data.map(d => d.time),
+    cumulativeData: hourlyData.hourly_data.map(d => d.totalSteps),
+    intervalData: hourlyData.hourly_data.map(d => d.steps)
+  };
+}
+
+// 週間/月間チャート用データフォーマット  
+function formatPeriodChartData(exerciseData) {
+  return exerciseData.recent_exercise.map(item => ({
     date: new Date(item.day).toLocaleDateString('ja-JP'),
     steps: item.exercise_quantity
   }));
+}
 
-  const contributionData = userData.recent_contributions.map(item => ({
+// コントリビューション表示用データフォーマット
+function formatContributionData(contributionData) {
+  return contributionData.recent_contributions.map(item => ({
     date: new Date(item.day).toLocaleDateString('ja-JP'), 
-    contributions: parseInt(item.count)
+    contributions: parseInt(item.count),
+    level: getContributionLevel(parseInt(item.count))
   }));
-
-  return { exerciseData, contributionData };
 }
 
-// 週間進捗計算
-function calculateWeeklyProgress(currentWeek, previousWeek) {
-  const stepProgress = ((currentWeek.total_steps - previousWeek.total_steps) / previousWeek.total_steps) * 100;
-  const contributionProgress = ((currentWeek.total_contributions - previousWeek.total_contributions) / previousWeek.total_contributions) * 100;
-  
-  return { stepProgress, contributionProgress };
+// GitHub風コントリビューションレベル計算
+function getContributionLevel(count) {
+  if (count === 0) return 0;
+  if (count <= 2) return 1;
+  if (count <= 5) return 2;  
+  if (count <= 8) return 3;
+  return 4;
 }
+
+// 進捗計算
+function calculateProgress(current, previous) {
+  if (!previous || previous === 0) return current > 0 ? 100 : 0;
+  return ((current - previous) / previous) * 100;
+}
+```
+
+### パブリックAPI活用の利点
+```javascript
+// 埋め込み表示用ウィジェット
+class FithubWidget {
+  constructor(containerId, userId) {
+    this.container = document.getElementById(containerId);
+    this.userId = userId;
+    this.dataService = new FithubDataService();
+  }
+
+  async render() {
+    try {
+      const [weekly, contributions] = await Promise.all([
+        this.dataService.getUserWeeklyData(this.userId),
+        this.dataService.getUserContributions(this.userId)
+      ]);
+
+      this.container.innerHTML = `
+        <div class="fithub-widget">
+          <h3>フィットネス状況</h3>
+          <div class="stats">
+            <div>週間歩数: ${weekly.data.total_steps.toLocaleString()}</div>
+            <div>週間コントリビューション: ${contributions.data.weekly_total}</div>
+          </div>
+        </div>
+      `;
+    } catch (error) {
+      this.container.innerHTML = '<div class="error">データの読み込みに失敗しました</div>';
+    }
+  }
+}
+
+// 使用例: 任意のWebサイトに埋め込み
+// <div id="my-fitness-widget"></div>
+// <script>
+//   new FithubWidget('my-fitness-widget', 'user_1752561583127_xengpxnh1').render();
+// </script>
 ```
 
 ## 🔧 パフォーマンス考慮事項
 
-### キャッシュ戦略
-- フロントエンドは5-10分間データをキャッシュ
-- ユーザーが明示的に要求した時のみ手動同期を使用
-- モバイルアプリのオフラインモード実装を検討
+### パブリックAPI利用時の注意
+- **ユーザーIDの取得**: 認証システムでユーザーIDを提供
+- **キャッシュ戦略**: 5-10分間データをキャッシュして負荷軽減
+- **エラーハンドリング**: 無効なユーザーIDに対する適切な処理
 
-### レート制限
-- 手動同期は1ユーザーあたり1分に1回に制限
-- 自動同期がすべてのバックグラウンド更新を処理
-- フロントエンドからの積極的なポーリングは不要
+### 認証API利用時の注意  
+- **手動同期**: 1ユーザーあたり1分に1回に制限
+- **自動同期**: バックグラウンドで2時間毎に実行
+- **トークン管理**: JWT有効期限の適切な処理
 
-### データ読み込み
-- ユーザーデータと統計を並行読み込み
-- より良いUXのためのローディング状態を使用
-- 失敗したリクエストのためのエラーバウンダリーを実装
+### データ読み込み最適化
+- **並行読み込み**: 複数エンドポイントの同時呼び出し
+- **ローディング状態**: より良いUXのための状態管理
+- **エラーバウンダリー**: 失敗したリクエストの適切な処理
+
+### セキュリティ考慮事項
+- **ユーザーID推測**: ランダムなIDにより推測攻撃を防止
+- **レート制限**: パブリックAPIも適切な制限を実装
+- **データプライバシー**: ユーザーの同意に基づく表示制御

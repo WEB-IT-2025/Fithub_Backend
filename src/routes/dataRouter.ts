@@ -8,9 +8,10 @@ import {
     clearOutdatedHourlyData,
     clearSpecificDateData,
     clearUserHourlyData,
-    getUserData,
+    getUserContributions,
     getUserHourlyData,
-    getUserStats,
+    getUserMonthlyData,
+    getUserWeeklyData,
     syncUserDataManually,
     testDailyCleanup,
     testDebugGoogleFit,
@@ -21,15 +22,20 @@ import { requireAdmin } from '~/middlewares/requireAdmin'
 
 const router = Router()
 
-// GET /api/data/user - Get user's exercise and contribution data
-router.get('/user', verifyToken, getUserData)
+// Public routes - no authentication required, just user_id param
+// GET /api/data/contribution/:userId - Get user's contribution data (30 days + totals)
+router.get('/contribution/:userId', getUserContributions)
 
-// GET /api/data/stats - Get user's statistics summary
-router.get('/stats', verifyToken, getUserStats)
+// GET /api/data/weekly/:userId - Get user's weekly exercise data (7 days)
+router.get('/weekly/:userId', getUserWeeklyData)
 
-// GET /api/data/hourly - Get user's hourly exercise data for today
-router.get('/hourly', verifyToken, getUserHourlyData)
+// GET /api/data/monthly/:userId - Get user's monthly exercise data (30 days)
+router.get('/monthly/:userId', getUserMonthlyData)
 
+// GET /api/data/hourly/:userId - Get user's hourly exercise data for today
+router.get('/hourly/:userId', getUserHourlyData)
+
+// Private routes - authentication required
 // POST /api/data/sync - Manual sync user data (includes hourly data)
 router.post('/sync', verifyToken, syncUserDataManually)
 

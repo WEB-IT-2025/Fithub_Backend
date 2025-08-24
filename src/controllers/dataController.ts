@@ -5,151 +5,6 @@ import db from '~/config/database'
 import { AuthenticatedRequest } from '~/middlewares/authMiddleware'
 import { dataSyncService } from '~/services/dataSyncService'
 
-// GET /api/data/user - Get user's exercise and contribution data
-export const getUserData = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const authReq = req as AuthenticatedRequest
-        const userId = authReq.user?.user_id
-        console.log('🧾 [getUserData] req.user:', req.user)
-        if (!userId) {
-            console.warn('⚠️ [getUserData] No user_id found in req.user')
-            return res.status(401).json({
-                success: false,
-                message: 'User not authenticated',
-            })
-        }
-
-        // Get today's date
-        const today = dataSyncService.getTodayDate()
-
-        // Get recent exercise data (last 7 days)
-        const [exerciseRows] = (await db.query(
-            `SELECT day, exercise_quantity FROM EXERCISE 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-             ORDER BY day DESC`,
-            [userId]
-        )) as RowDataPacket[]
-
-        // Get recent contribution data (last 7 days)
-        const [contributionRows] = (await db.query(
-            `SELECT day, count FROM CONTRIBUTIONS 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-             ORDER BY day DESC`,
-            [userId]
-        )) as RowDataPacket[]
-
-        // Get today's data specifically
-        const [todayExercise] = (await db.query(
-            `SELECT exercise_quantity FROM EXERCISE 
-             WHERE user_id = ? AND DATE(day) = ?`,
-            [userId, today]
-        )) as RowDataPacket[]
-
-        const [todayContribution] = (await db.query(
-            `SELECT count FROM CONTRIBUTIONS 
-             WHERE user_id = ? AND DATE(day) = ?`,
-            [userId, today]
-        )) as RowDataPacket[]
-
-        const response = {
-            success: true,
-            data: {
-                user_id: userId,
-                today: {
-                    date: today,
-                    steps: todayExercise[0]?.exercise_quantity || 0,
-                    contributions: parseInt(todayContribution[0]?.count || '0'),
-                },
-                recent_exercise: exerciseRows,
-                recent_contributions: contributionRows,
-                last_updated: new Date().toISOString(),
-            },
-        }
-
-        res.json(response)
-    } catch (error) {
-        console.error('❌ [DATA] Failed to get user data:', error)
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve user data',
-        })
-    }
-}
-
-// GET /api/data/stats - Get user's statistics summary
-export const getUserStats = async (req: Request, res: Response) => {
-    try {
-        const authReq = req as AuthenticatedRequest
-        const userId = authReq.user?.user_id
-        if (!userId) {
-            return res.status(401).json({
-                success: false,
-                message: 'User not authenticated',
-            })
-        }
-
-        // Get weekly totals
-        const [weeklyStats] = (await db.query(
-            `SELECT 
-                SUM(exercise_quantity) as total_steps,
-                COUNT(DISTINCT DATE(day)) as active_days
-             FROM EXERCISE 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
-            [userId]
-        )) as RowDataPacket[]
-
-        const [weeklyContributions] = (await db.query(
-            `SELECT SUM(CAST(count AS UNSIGNED)) as total_contributions
-             FROM CONTRIBUTIONS 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
-            [userId]
-        )) as RowDataPacket[]
-
-        // Get monthly totals
-        const [monthlyStats] = (await db.query(
-            `SELECT 
-                SUM(exercise_quantity) as total_steps,
-                COUNT(DISTINCT DATE(day)) as active_days
-             FROM EXERCISE 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 30 DAY)`,
-            [userId]
-        )) as RowDataPacket[]
-
-        const [monthlyContributions] = (await db.query(
-            `SELECT SUM(CAST(count AS UNSIGNED)) as total_contributions
-             FROM CONTRIBUTIONS 
-             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 30 DAY)`,
-            [userId]
-        )) as RowDataPacket[]
-
-        const response = {
-            success: true,
-            data: {
-                user_id: userId,
-                weekly: {
-                    total_steps: weeklyStats[0]?.total_steps || 0,
-                    total_contributions: weeklyContributions[0]?.total_contributions || 0,
-                    active_days: weeklyStats[0]?.active_days || 0,
-                },
-                monthly: {
-                    total_steps: monthlyStats[0]?.total_steps || 0,
-                    total_contributions: monthlyContributions[0]?.total_contributions || 0,
-                    active_days: monthlyStats[0]?.active_days || 0,
-                },
-                last_updated: new Date().toISOString(),
-            },
-        }
-
-        res.json(response)
-    } catch (error) {
-        console.error('❌ [DATA] Failed to get user stats:', error)
-        res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve user statistics',
-        })
-    }
-}
-
 // POST /api/data/sync - Manual sync user data (includes hourly data)
 export const syncUserDataManually = async (req: Request, res: Response) => {
     try {
@@ -200,12 +55,11 @@ export const syncUserDataManually = async (req: Request, res: Response) => {
 // GET /api/data/hourly - Get user's hourly exercise data for today
 export const getUserHourlyData = async (req: Request, res: Response) => {
     try {
-        const authReq = req as AuthenticatedRequest
-        const userId = authReq.user?.user_id
-        if (!userId) {
-            return res.status(401).json({
+        const userId = req.params.userId
+        if (!userId || userId.trim() === '') {
+            return res.status(400).json({
                 success: false,
-                message: 'User not authenticated',
+                message: 'Invalid user_id parameter',
             })
         }
 
@@ -512,6 +366,154 @@ export const testDebugGoogleFit = async (req: Request, res: Response) => {
             success: false,
             message: 'Failed to debug Google Fit',
             error: error instanceof Error ? error.message : 'Unknown error',
+        })
+    }
+}
+
+// Public API: GET /api/data/contribution/:userId - Get user's contribution data (30 days + totals)
+export const getUserContributions = async (req: Request, res: Response) => {
+    try {
+        const userId = req.params.userId
+        if (!userId || userId.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user_id parameter',
+            })
+        }
+
+        // Get 30 days contribution data
+        const [contributionRows] = (await db.query(
+            `SELECT day, count FROM CONTRIBUTIONS 
+             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+             ORDER BY day DESC`,
+            [userId]
+        )) as RowDataPacket[]
+
+        // Get 7 days total
+        const [weeklyTotal] = (await db.query(
+            `SELECT SUM(CAST(count AS UNSIGNED)) as total_contributions
+             FROM CONTRIBUTIONS 
+             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
+            [userId]
+        )) as RowDataPacket[]
+
+        // Get 30 days total
+        const [monthlyTotal] = (await db.query(
+            `SELECT SUM(CAST(count AS UNSIGNED)) as total_contributions
+             FROM CONTRIBUTIONS 
+             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 30 DAY)`,
+            [userId]
+        )) as RowDataPacket[]
+
+        const response = {
+            success: true,
+            data: {
+                user_id: userId,
+                recent_contributions: contributionRows,
+                weekly_total: weeklyTotal[0]?.total_contributions || 0,
+                monthly_total: monthlyTotal[0]?.total_contributions || 0,
+                last_updated: new Date().toISOString(),
+            },
+        }
+
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [DATA] Failed to get user contributions:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve user contributions',
+        })
+    }
+}
+
+// Public API: GET /api/data/weekly/:userId - Get user's weekly exercise data (7 days)
+export const getUserWeeklyData = async (req: Request, res: Response) => {
+    try {
+        const userId = req.params.userId
+        if (!userId || userId.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user_id parameter',
+            })
+        }
+
+        // Get 7 days exercise data
+        const [exerciseRows] = (await db.query(
+            `SELECT day, exercise_quantity FROM EXERCISE 
+             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+             ORDER BY day DESC`,
+            [userId]
+        )) as RowDataPacket[]
+
+        // Calculate total steps
+        const totalSteps = exerciseRows.reduce(
+            (sum: number, row: RowDataPacket) => sum + (row.exercise_quantity || 0),
+            0
+        )
+
+        const response = {
+            success: true,
+            data: {
+                user_id: userId,
+                recent_exercise: exerciseRows,
+                total_steps: totalSteps,
+                period: '7 days',
+                last_updated: new Date().toISOString(),
+            },
+        }
+
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [DATA] Failed to get user weekly data:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve user weekly data',
+        })
+    }
+}
+
+// Public API: GET /api/data/monthly/:userId - Get user's monthly exercise data (30 days)
+export const getUserMonthlyData = async (req: Request, res: Response) => {
+    try {
+        const userId = req.params.userId
+        if (!userId || userId.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user_id parameter',
+            })
+        }
+
+        // Get 30 days exercise data
+        const [exerciseRows] = (await db.query(
+            `SELECT day, exercise_quantity FROM EXERCISE 
+             WHERE user_id = ? AND day >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+             ORDER BY day DESC`,
+            [userId]
+        )) as RowDataPacket[]
+
+        // Calculate total steps
+        const totalSteps = exerciseRows.reduce(
+            (sum: number, row: RowDataPacket) => sum + (row.exercise_quantity || 0),
+            0
+        )
+
+        const response = {
+            success: true,
+            data: {
+                user_id: userId,
+                recent_exercise: exerciseRows,
+                total_steps: totalSteps,
+                period: '30 days',
+                last_updated: new Date().toISOString(),
+            },
+        }
+
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [DATA] Failed to get user monthly data:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve user monthly data',
         })
     }
 }

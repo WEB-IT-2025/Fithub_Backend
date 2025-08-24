@@ -346,13 +346,13 @@ export const dataSyncService = {
     // Get today's hourly exercise data from database
     async getTodayHourlyStepsFromDatabase(userId: string): Promise<{ timestamp: string; steps: number }[]> {
         try {
-            const today = this.getTodayDate()
+            const today = this.getTodayDate() // JST date (e.g., "2025-08-24")
 
             const [rows] = await db.query(
                 `SELECT timestamp, steps 
                  FROM EXERCISE_DATE 
                  WHERE user_id = ? 
-                   AND DATE(timestamp) = ?
+                   AND DATE(CONVERT_TZ(timestamp, '+00:00', '+09:00')) = ?
                  ORDER BY timestamp ASC`,
                 [userId, today]
             )
@@ -395,9 +395,8 @@ export const dataSyncService = {
             for (const user of activeGoogleUsers) {
                 try {
                     const syncedData = await this.syncUserHourlyExerciseData(user.user_id)
-                    if (syncedData.length > 0) {
-                        successCount++
-                    }
+                    successCount++ // Count as success regardless of data length
+                    console.log(`✅ [HOURLY] Synced data for ${user.user_id}: ${syncedData.length} entries`)
                 } catch (error) {
                     console.error(`❌ [HOURLY] Failed to sync hourly data for user ${user.user_id}:`, error)
                     errorCount++
