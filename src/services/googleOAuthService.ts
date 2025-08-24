@@ -325,24 +325,28 @@ export const googleOAuthService = {
                 console.log('⚠️ [Google Fit] No hourly data buckets found')
             }
 
-            // Merge odd hours into even hours and generate 2-hour interval data
-            const mergedStepsMap = new Map<number, number>()
-            for (let hour = 0; hour <= 22; hour += 2) {
-                const evenHourSteps = hourlyStepsMap.get(hour) || 0
-                const oddHourSteps = hourlyStepsMap.get(hour + 1) || 0
-                const totalSteps = evenHourSteps + oddHourSteps
-                mergedStepsMap.set(hour, totalSteps)
+            // Calculate cumulative steps for 2-hour intervals
+            const cumulativeStepsMap = new Map<number, number>()
 
-                if (totalSteps > 0) {
-                    console.log(
-                        `🔢 [Google Fit] Merged Hour ${hour}:00-${hour + 1}:59 = ${evenHourSteps} + ${oddHourSteps} = ${totalSteps} steps`
-                    )
+            // First, calculate cumulative sum up to each even hour
+            for (let hour = 0; hour <= 22; hour += 2) {
+                let cumulativeSteps = 0
+
+                // Sum all steps from hour 0 to current hour + 1 (inclusive)
+                for (let h = 0; h <= hour + 1 && h < 24; h++) {
+                    cumulativeSteps += hourlyStepsMap.get(h) || 0
+                }
+
+                cumulativeStepsMap.set(hour, cumulativeSteps)
+
+                if (cumulativeSteps > 0) {
+                    console.log(`🔢 [Google Fit] Cumulative up to ${hour + 1}:59 = ${cumulativeSteps} steps`)
                 }
             }
 
-            // Generate 2-hour interval data for 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22 hours
+            // Generate 2-hour cumulative data for 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22 hours
             for (let hour = 0; hour <= 22; hour += 2) {
-                const steps = mergedStepsMap.get(hour) || 0
+                const steps = cumulativeStepsMap.get(hour) || 0
                 const timeString = `${hour.toString().padStart(2, '0')}:00`
 
                 hourlyData.push({
@@ -351,7 +355,7 @@ export const googleOAuthService = {
                 })
 
                 if (steps > 0) {
-                    console.log(`✅ [Google Fit] Hour ${hour}:00 = ${steps} steps`)
+                    console.log(`✅ [Google Fit] Cumulative at ${hour}:00 = ${steps} steps`)
                 }
             }
 
