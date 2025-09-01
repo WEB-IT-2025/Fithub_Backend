@@ -34,6 +34,17 @@ export interface UserPetInfo extends RowDataPacket {
 }
 
 export const petModel = {
+    // ユーザー名のみ取得
+    async getUserName(userId: string): Promise<string | null> {
+        try {
+            const [rows] = await db.query<RowDataPacket[]>('SELECT user_name FROM USERS WHERE user_id = ?', [userId])
+            return rows.length > 0 ? rows[0].user_name : null
+        } catch (error) {
+            console.error('Error fetching user name:', error)
+            throw error
+        }
+    },
+
     // ユーザーのプロフィール情報取得（メインペット情報のみ）
     async getUserProfile(userId: string): Promise<UserProfile | null> {
         try {

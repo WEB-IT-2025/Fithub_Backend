@@ -5,6 +5,44 @@ import { thresholdModel } from '~/models/thresholdModel'
 import { petGrowthService } from '~/services/petGrowthService'
 import { UserPayload } from '~/types/UserPayload'
 
+// ユーザーの名前のみ取得
+export const getUserName = asyncHandler(async (req: Request, res: Response) => {
+    const user_id = (req.user as UserPayload)?.user_id
+
+    if (!user_id) {
+        return res.status(401).json({
+            success: false,
+            error: '認証が必要です',
+        })
+    }
+
+    try {
+        // ユーザー名のみを取得
+        const userName = await petModel.getUserName(user_id)
+
+        if (!userName) {
+            return res.status(404).json({
+                success: false,
+                error: 'ユーザーが見つかりません',
+            })
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                user_id,
+                user_name: userName,
+            },
+        })
+    } catch (error) {
+        console.error('Error fetching user name:', error)
+        return res.status(500).json({
+            success: false,
+            error: 'ユーザー名の取得に失敗しました',
+        })
+    }
+})
+
 // ユーザーのプロフィール情報取得（ペット情報含む）
 // 最新の成長データで自動更新されたペット情報を返す
 export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
