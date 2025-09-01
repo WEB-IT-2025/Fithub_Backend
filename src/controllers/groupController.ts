@@ -158,6 +158,7 @@ export const getGroupMembers = asyncHandler(async (req: Request, res: Response) 
                     item_id: member.main_pet_item_id,
                     pet_size: member.pet_size || 1,
                     pet_intimacy: member.pet_intimacy || 0,
+                    pet_image: member.pet_image || null,
                 }
             :   null,
     }))

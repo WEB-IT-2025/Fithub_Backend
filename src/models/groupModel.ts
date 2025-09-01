@@ -25,6 +25,7 @@ export interface GroupMemberWithPet extends RowDataPacket {
     main_pet_item_id?: string
     pet_size?: number
     pet_intimacy?: number
+    pet_image?: string
 }
 
 export const groupModel = {
@@ -112,10 +113,12 @@ export const groupModel = {
                 up.user_pet_name as main_pet_name,
                 up.item_id as main_pet_item_id,
                 up.pet_size,
-                up.pet_intimacy
+                up.pet_intimacy,
+                i.item_image_url as pet_image
             FROM GROUP_MEMBER gm 
             JOIN USERS u ON gm.user_id = u.user_id 
             LEFT JOIN USERS_PETS up ON u.user_id = up.user_id AND up.user_main_pet = true
+            LEFT JOIN ITEMS i ON up.item_id = i.item_id
             WHERE gm.group_id = ?`,
             [group_id]
         )
