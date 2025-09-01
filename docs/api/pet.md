@@ -52,15 +52,19 @@ curl -X GET http://localhost:3000/api/pet/name \
 
 ---
 
-### `GET /api/pet/profile`
+### `GET /api/pet/profile/:userId`
 ユーザープロフィール取得（メインペット情報込み）
 
 **認証**: 必要（JWT Token）
 
+**パラメーター:**
+- `userId` (string): 取得したいユーザーのID
+
 **リクエスト例:**
 ```javascript
 // JavaScript/React Native
-const response = await fetch('/api/pet/profile', {
+const userId = "7Mpj4mM1qS9vX2nE8fR3";
+const response = await fetch(`/api/pet/profile/${userId}`, {
   method: 'GET',
   headers: {
     'Authorization': 'Bearer YOUR_JWT_TOKEN',
@@ -69,6 +73,13 @@ const response = await fetch('/api/pet/profile', {
 });
 
 const result = await response.json();
+```
+
+**cURLリクエスト例:**
+```bash
+curl -X GET http://localhost:3000/api/pet/profile/7Mpj4mM1qS9vX2nE8fR3 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json"
 ```
 
 **レスポンス例:**

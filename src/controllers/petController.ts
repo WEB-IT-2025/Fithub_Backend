@@ -46,21 +46,30 @@ export const getUserName = asyncHandler(async (req: Request, res: Response) => {
 // ユーザーのプロフィール情報取得（ペット情報含む）
 // 最新の成長データで自動更新されたペット情報を返す
 export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
-    const user_id = (req.user as UserPayload)?.user_id
+    const { userId } = req.params
+    const requestingUserId = (req.user as UserPayload)?.user_id
 
-    if (!user_id) {
+    if (!requestingUserId) {
         return res.status(401).json({
             success: false,
             error: '認証が必要です',
         })
     }
 
+    // パスパラメーターの検証
+    if (!userId) {
+        return res.status(400).json({
+            success: false,
+            error: 'ユーザーIDが必要です',
+        })
+    }
+
     try {
         // ペット成長データを最新に更新
-        await petGrowthService.updatePetGrowthForUser(user_id)
+        await petGrowthService.updatePetGrowthForUser(userId)
 
         // 最新のプロフィール情報を取得
-        const profile = await petModel.getUserProfile(user_id)
+        const profile = await petModel.getUserProfile(userId)
 
         if (!profile) {
             return res.status(404).json({

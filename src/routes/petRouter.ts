@@ -1,6 +1,5 @@
 import express from 'express'
 import {
-    getUserName,
     getUserPets,
     getUserProfile,
     updateAllPetGrowth,
@@ -24,11 +23,8 @@ const router = express.Router()
 
 // === ユーザー向けAPI ===
 
-// ユーザー名のみ取得
-router.get('/name', requireCompleteUser, getUserName)
-
 // ユーザープロフィール取得（メインペット情報）
-router.get('/profile', requireCompleteUser, getUserProfile)
+router.get('/profile/:userId', requireCompleteUser, getUserProfile)
 
 // 所有しているペット一覧取得
 router.get('/owned', requireCompleteUser, getUserPets)
