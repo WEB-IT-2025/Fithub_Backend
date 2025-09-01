@@ -24,7 +24,7 @@ const router = express.Router()
 // === ユーザー向けAPI ===
 
 // ユーザープロフィール取得（メインペット情報）
-router.get('/profile/:userId', requireCompleteUser, getUserProfile)
+router.get('/profile/:userId', getUserProfile)
 
 // 所有しているペット一覧取得
 router.get('/owned', requireCompleteUser, getUserPets)

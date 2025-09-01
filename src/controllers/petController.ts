@@ -5,6 +5,45 @@ import { thresholdModel } from '~/models/thresholdModel'
 import { petGrowthService } from '~/services/petGrowthService'
 import { UserPayload } from '~/types/UserPayload'
 
+// ユーザープロフィール取得（メインペット情報）- 認証不要
+export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
+    const { userId } = req.params
+
+    // パスパラメーターの検証
+    if (!userId) {
+        return res.status(400).json({
+            success: false,
+            error: 'ユーザーIDが必要です',
+        })
+    }
+
+    try {
+        // ペット成長データを最新に更新
+        await petGrowthService.updatePetGrowthForUser(userId)
+
+        // 最新のプロフィール情報を取得
+        const profile = await petModel.getUserProfile(userId)
+
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                error: 'ユーザープロフィールが見つかりません',
+            })
+        }
+
+        res.status(200).json({
+            success: true,
+            data: profile,
+        })
+    } catch (error) {
+        console.error('Error fetching user profile:', error)
+        return res.status(500).json({
+            success: false,
+            error: 'プロフィール情報の取得に失敗しました',
+        })
+    }
+})
+
 // ユーザーの名前のみ取得
 export const getUserName = asyncHandler(async (req: Request, res: Response) => {
     const user_id = (req.user as UserPayload)?.user_id
@@ -39,54 +78,6 @@ export const getUserName = asyncHandler(async (req: Request, res: Response) => {
         return res.status(500).json({
             success: false,
             error: 'ユーザー名の取得に失敗しました',
-        })
-    }
-})
-
-// ユーザーのプロフィール情報取得（ペット情報含む）
-// 最新の成長データで自動更新されたペット情報を返す
-export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
-    const { userId } = req.params
-    const requestingUserId = (req.user as UserPayload)?.user_id
-
-    if (!requestingUserId) {
-        return res.status(401).json({
-            success: false,
-            error: '認証が必要です',
-        })
-    }
-
-    // パスパラメーターの検証
-    if (!userId) {
-        return res.status(400).json({
-            success: false,
-            error: 'ユーザーIDが必要です',
-        })
-    }
-
-    try {
-        // ペット成長データを最新に更新
-        await petGrowthService.updatePetGrowthForUser(userId)
-
-        // 最新のプロフィール情報を取得
-        const profile = await petModel.getUserProfile(userId)
-
-        if (!profile) {
-            return res.status(404).json({
-                success: false,
-                error: 'ユーザープロフィールが見つかりません',
-            })
-        }
-
-        res.status(200).json({
-            success: true,
-            data: profile,
-        })
-    } catch (error) {
-        console.error('Error fetching user profile:', error)
-        return res.status(500).json({
-            success: false,
-            error: 'プロフィール情報の取得に失敗しました',
         })
     }
 })
