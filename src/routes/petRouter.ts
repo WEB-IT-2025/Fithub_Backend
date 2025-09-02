@@ -3,8 +3,8 @@ import {
     getUserPetSizesDebug,
     getUserPets,
     getUserProfile,
-    updateAllPetGrowth,
-    updatePetGrowth,
+    // updateAllPetGrowth,
+    // updatePetGrowth,
     updatePetHealthStandard,
     updatePetSizeDebug,
     updatePetSizeStandard,
@@ -34,8 +34,8 @@ router.get('/owned', requireCompleteUser, getUserPets)
 // 主ペット更新
 router.put('/main', requireCompleteUser, updateMainPetValidation, handleValidationErrors, updateUserMainPet)
 
-// ペット成長データ更新
-router.put('/growth', requireCompleteUser, updatePetGrowth)
+// // ペット成長データ更新
+// router.put('/growth', requireCompleteUser, updatePetGrowth)
 
 // 親密度アイテム使用
 router.post('/intimacy-item', requireCompleteUser, useIntimacyItem)
@@ -62,7 +62,7 @@ router.put(
 )
 
 // 全ユーザーペット成長データ更新
-router.put('/admin/growth-all', requireAdmin, updateAllPetGrowth)
+// router.put('/admin/growth-all', requireAdmin, updateAllPetGrowth)
 
 // === デバッグ用API（管理者のみ） ===
 

@@ -179,7 +179,7 @@ export const updateUserMainPet = asyncHandler(async (req: Request, res: Response
             await petGrowthService.transferHealthOnMainPetSwitch(user_id, item_id)
 
             // ペット成長データを最新に更新
-            await petGrowthService.updatePetGrowthForUser(user_id)
+            // await petGrowthService.updatePetGrowthForUser(user_id)
 
             res.status(200).json({
                 success: true,
