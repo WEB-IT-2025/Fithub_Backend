@@ -16,6 +16,12 @@ export interface PetHealthStandardDTO {
     pet_health_logic: number
 }
 
+export interface DebugPetSizeDTO {
+    user_id: string
+    item_id: string
+    pet_size: number
+}
+
 export const thresholdModel = {
     /**
      * 歩数ポイント換算設定を取得する
@@ -66,6 +72,40 @@ export const thresholdModel = {
         } catch (error) {
             console.error('Error fetching thresholds:', error)
             throw error
+        }
+    },
+
+    /**
+     * デバッグ用：特定ペットのサイズを直接更新する
+     */
+    async updatePetSizeDebug(debugData: DebugPetSizeDTO): Promise<boolean> {
+        try {
+            const [result] = await db.query<OkPacket>(
+                'UPDATE USERS_PETS SET pet_size = ? WHERE user_id = ? AND item_id = ?',
+                [debugData.pet_size, debugData.user_id, debugData.item_id]
+            )
+            return result.affectedRows > 0
+        } catch (error) {
+            console.error('Error updating pet size (debug):', error)
+            return false
+        }
+    },
+
+    /**
+     * デバッグ用：特定ユーザーの全ペットサイズを取得する
+     */
+    async getUserPetSizes(
+        userId: string
+    ): Promise<Array<{ item_id: string; pet_size: number; user_main_pet: boolean }>> {
+        try {
+            const [rows] = await db.query<RowDataPacket[]>(
+                'SELECT item_id, pet_size, user_main_pet FROM USERS_PETS WHERE user_id = ?',
+                [userId]
+            )
+            return rows as Array<{ item_id: string; pet_size: number; user_main_pet: boolean }>
+        } catch (error) {
+            console.error('Error fetching user pet sizes:', error)
+            return []
         }
     },
 }

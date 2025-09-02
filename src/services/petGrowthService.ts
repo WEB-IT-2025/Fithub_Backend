@@ -105,15 +105,19 @@ export const petGrowthService = {
             const contribData = await dataSyncService.getWeeklyContributionsFromDatabase(userId)
 
             if (contribData.length === 0) {
+                console.log(`🔍 [DEBUG] No contribution data found for user ${userId}, returning 0%`)
                 return 0 // データがない場合は0%
             }
 
             // 過去7日間の合計コントリビューション数を計算
             const totalContributions = contribData.reduce((sum, data) => sum + data.contributions, 0)
 
-            // サイズ基準値を取得（デフォルト: 50回/週）
+            // サイズ基準値を取得（デフォルト: 100回/週）- 修正済み
             const thresholds = await thresholdModel.getAllThresholds()
-            const sizeStandard = thresholds?.pet_size_logic || 50
+            const sizeStandard = thresholds?.pet_size_logic || 100
+
+            console.log(`🔍 [DEBUG] Threshold data for ${userId}:`, thresholds)
+            console.log(`🔍 [DEBUG] Size standard being used: ${sizeStandard}`)
 
             // サイズを計算 (0-100%)
             // sizeStandard回で100%、0回で0%の線形計算
@@ -123,8 +127,11 @@ export const petGrowthService = {
             sizePercentage = Math.max(0, Math.min(100, sizePercentage))
 
             console.log(
-                `Size calculation for user ${userId}: ${totalContributions} contributions / ${sizeStandard} standard = ${sizePercentage}%`
+                `🔍 [DEBUG] Size calculation for user ${userId}: ` +
+                    `${totalContributions} contributions / ${sizeStandard} standard = ${sizePercentage}% ` +
+                    `(raw: ${((totalContributions / sizeStandard) * 100).toFixed(2)}%)`
             )
+            console.log(`🔍 [DEBUG] Contribution data for ${userId}:`, contribData)
             return sizePercentage
         } catch (error) {
             console.error('Error calculating size from contributions:', error)
@@ -162,9 +169,18 @@ export const petGrowthService = {
             finalSize = Math.max(0, Math.min(100, finalSize))
 
             console.log(
-                `Individual pet size calculation for user ${userId}, pet ${itemId}: ` +
+                `🔍 [DEBUG] Individual pet size calculation for user ${userId}, pet ${itemId}: ` +
                     `base=${baseSize}%, timeBonus=${timeBonus.toFixed(1)}%, mainBonus=${mainPetBonus}%, final=${finalSize}%`
             )
+
+            // 追加デバッグ情報
+            if (finalSize >= 100) {
+                console.log(`🚨 [DEBUG] Pet size reached maximum (100%) for ${userId}:${itemId}`)
+                console.log(`   - Base size from contributions: ${baseSize}%`)
+                console.log(`   - Time bonus (purchase date): ${timeBonus.toFixed(1)}%`)
+                console.log(`   - Main pet bonus: ${mainPetBonus}%`)
+                console.log(`   - Total before cap: ${(baseSize + timeBonus + mainPetBonus).toFixed(1)}%`)
+            }
 
             return finalSize
         } catch (error) {

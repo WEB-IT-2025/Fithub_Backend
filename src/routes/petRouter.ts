@@ -1,10 +1,12 @@
 import express from 'express'
 import {
+    getUserPetSizesDebug,
     getUserPets,
     getUserProfile,
     updateAllPetGrowth,
     updatePetGrowth,
     updatePetHealthStandard,
+    updatePetSizeDebug,
     updatePetSizeStandard,
     updateUserMainPet,
     useIntimacyItem,
@@ -61,5 +63,13 @@ router.put(
 
 // 全ユーザーペット成長データ更新
 router.put('/admin/growth-all', requireAdmin, updateAllPetGrowth)
+
+// === デバッグ用API（管理者のみ） ===
+
+// ペットサイズ直接更新（デバッグ用）
+router.put('/debug/size', requireAdmin, updatePetSizeDebug)
+
+// ユーザーのペットサイズ一覧取得（デバッグ用）
+router.get('/debug/sizes/:userId', requireAdmin, getUserPetSizesDebug)
 
 export default router

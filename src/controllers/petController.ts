@@ -402,3 +402,86 @@ export const useIntimacyItem = asyncHandler(async (req: Request, res: Response) 
         })
     }
 })
+
+// デバッグ用：ペットサイズ直接更新（管理者）
+export const updatePetSizeDebug = asyncHandler(async (req: Request, res: Response) => {
+    const { user_id, item_id, pet_size } = req.body
+
+    // 必須パラメータの検証
+    if (!user_id || !item_id || pet_size === undefined || pet_size === null) {
+        return res.status(400).json({
+            success: false,
+            error: 'user_id、item_id、pet_sizeは必須です',
+        })
+    }
+
+    // 数値型の検証
+    const sizeValue = Number(pet_size)
+    if (isNaN(sizeValue) || sizeValue < 0 || sizeValue > 100) {
+        return res.status(400).json({
+            success: false,
+            error: 'pet_sizeは0-100の範囲で入力してください',
+        })
+    }
+
+    try {
+        const success = await thresholdModel.updatePetSizeDebug({
+            user_id,
+            item_id,
+            pet_size: sizeValue,
+        })
+
+        if (success) {
+            res.status(200).json({
+                success: true,
+                message: `ペットサイズを${sizeValue}%に更新しました（デバッグ）`,
+                data: {
+                    user_id,
+                    item_id,
+                    pet_size: sizeValue,
+                },
+            })
+        } else {
+            res.status(400).json({
+                success: false,
+                error: 'ペットサイズの更新に失敗しました',
+            })
+        }
+    } catch (error) {
+        console.error('Error updating pet size (debug):', error)
+        return res.status(500).json({
+            success: false,
+            error: 'ペットサイズ更新中にエラーが発生しました',
+        })
+    }
+})
+
+// デバッグ用：ユーザーのペットサイズ一覧取得（管理者）
+export const getUserPetSizesDebug = asyncHandler(async (req: Request, res: Response) => {
+    const { userId } = req.params
+
+    if (!userId) {
+        return res.status(400).json({
+            success: false,
+            error: 'ユーザーIDが必要です',
+        })
+    }
+
+    try {
+        const petSizes = await thresholdModel.getUserPetSizes(userId)
+
+        res.status(200).json({
+            success: true,
+            data: {
+                user_id: userId,
+                pets: petSizes,
+            },
+        })
+    } catch (error) {
+        console.error('Error fetching user pet sizes (debug):', error)
+        return res.status(500).json({
+            success: false,
+            error: 'ペットサイズ取得中にエラーが発生しました',
+        })
+    }
+})
