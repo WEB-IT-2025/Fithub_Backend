@@ -54,8 +54,8 @@ export const syncUserDataManually = async (req: Request, res: Response) => {
     }
 }
 
-// GET /api/data/githubUserName/:userId - Get user's GitHub username (public)
-export const getGithubUserName = async (req: Request, res: Response) => {
+// GET /api/data/userName/:userId - Get user's GitHub and Google user info (public)
+export const getUserName = async (req: Request, res: Response) => {
     try {
         const userId = req.params.userId
         if (!userId || userId.trim() === '') {
@@ -75,28 +75,23 @@ export const getGithubUserName = async (req: Request, res: Response) => {
             })
         }
 
-        if (!user.github_username) {
-            return res.status(404).json({
-                success: false,
-                message: 'GitHub username not found for this user',
-            })
-        }
-
         const response = {
             success: true,
             data: {
                 user_id: userId,
-                github_username: user.github_username,
-                github_user_id: user.github_user_id,
+                user_name: user.user_name, // Google user name
+                github_username: user.github_username || null,
+                github_user_id: user.github_user_id || null,
+                google_user_id: user.google_user_id || null,
             },
         }
 
         res.json(response)
     } catch (error) {
-        console.error('❌ [DATA] Failed to get GitHub username:', error)
+        console.error('❌ [DATA] Failed to get user names:', error)
         res.status(500).json({
             success: false,
-            message: 'Failed to retrieve GitHub username',
+            message: 'Failed to retrieve user information',
         })
     }
 }
