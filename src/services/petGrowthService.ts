@@ -133,8 +133,87 @@ export const petGrowthService = {
     },
 
     /**
+     * 個別ペットのサイズを計算 (0-100%)
+     * 基本はコントリビューション数ベースだが、ペット毎の特性や育成期間も考慮
+     */
+    async calculateSizeForIndividualPet(userId: string, itemId: string): Promise<number> {
+        try {
+            // 基本サイズ（コントリビューション数ベース）
+            const baseSize = await this.calculateSizeFromContributions(userId)
+
+            // ペット個別の育成ボーナス（購入からの経過時間）
+            const purchaseDate = await petModel.getPetPurchaseDate(userId, itemId)
+            let timeBonus = 0
+
+            if (purchaseDate) {
+                const now = new Date()
+                const daysSincePurchase = Math.floor((now.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24))
+
+                // 30日かけて最大10%のボーナス
+                timeBonus = Math.min(10, (daysSincePurchase / 30) * 10)
+            }
+
+            // メインペットの場合は追加ボーナス
+            const isMainPet = await petModel.isMainPet(userId, itemId)
+            const mainPetBonus = isMainPet ? 5 : 0
+
+            // 最終サイズ計算
+            let finalSize = Math.round(baseSize + timeBonus + mainPetBonus)
+            finalSize = Math.max(0, Math.min(100, finalSize))
+
+            console.log(
+                `Individual pet size calculation for user ${userId}, pet ${itemId}: ` +
+                    `base=${baseSize}%, timeBonus=${timeBonus.toFixed(1)}%, mainBonus=${mainPetBonus}%, final=${finalSize}%`
+            )
+
+            return finalSize
+        } catch (error) {
+            console.error('Error calculating individual pet size:', error)
+            return 0
+        }
+    },
+
+    /**
+     * 健康度を歩数から計算 (0-100%)
+     * 全ペット共通の値として使用
+     */
+    async calculateHealthFromSteps(userId: string): Promise<number> {
+        try {
+            // 過去7日間の歩数データを取得
+            const stepsData = await dataSyncService.getWeeklyStepsFromDatabase(userId)
+
+            if (stepsData.length === 0) {
+                return 50 // データがない場合は標準的な健康度
+            }
+
+            // 過去7日間の合計歩数を計算
+            const totalWeeklySteps = stepsData.reduce((sum, data) => sum + data.steps, 0)
+
+            // 健康度基準値を取得（デフォルト: 35000歩/週）
+            const thresholds = await thresholdModel.getAllThresholds()
+            const healthStandard = thresholds?.pet_health_logic || 35000
+
+            // 健康度を計算 (0-100%)
+            let healthPercentage = Math.round((totalWeeklySteps / healthStandard) * 100)
+
+            // 最大100%、最小0%に制限
+            healthPercentage = Math.max(0, Math.min(100, healthPercentage))
+
+            console.log(
+                `Health calculation for user ${userId}: ` +
+                    `${totalWeeklySteps} steps, standard=${healthStandard}, health=${healthPercentage}%`
+            )
+
+            return healthPercentage
+        } catch (error) {
+            console.error('Error calculating health from steps:', error)
+            return 50 // エラー時は標準値
+        }
+    },
+
+    /**
      * ユーザーのペットのサイズと親密度を更新
-     * 親密度は購入日とメインペット育成期間に基づいて個別計算
+     * サイズと親密度はペット毎に個別計算、健康度は全ペット共通
      */
     async updatePetGrowthForUser(userId: string): Promise<boolean> {
         try {
@@ -146,11 +225,14 @@ export const petGrowthService = {
                 return true // ペットがない場合は正常終了
             }
 
-            // 新しいサイズを計算（全ペット共通）
-            const newSize = await this.calculateSizeFromContributions(userId)
+            // 健康度を計算（全ペット共通、歩数ベース）
+            const healthPercentage = await this.calculateHealthFromSteps(userId)
 
-            // 各ペットの親密度を個別に計算・更新
+            // 各ペットのサイズと親密度を個別に計算・更新
             for (const pet of userPets) {
+                // ペット個別のサイズ計算（コントリビューション + ペット特性）
+                const newSize = await this.calculateSizeForIndividualPet(userId, pet.item_id)
+
                 // ペット個別の親密度計算（購入日 + メインペット状態 + アイテム使用）
                 const newIntimacy = await this.calculateIntimacyFromPurchaseAndCare(userId, pet.item_id)
 
@@ -160,7 +242,7 @@ export const petGrowthService = {
                 console.log(
                     `Updated pet ${pet.item_id} for user ${userId}: ` +
                         `size=${newSize}%, intimacy=${newIntimacy}%, ` +
-                        `isMainPet=${pet.user_main_pet}`
+                        `health=${healthPercentage}%, isMainPet=${pet.user_main_pet}`
                 )
             }
 

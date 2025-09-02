@@ -31,6 +31,11 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
             })
         }
 
+        // 健康度を動的に計算して追加
+        if (profile.main_pet_item_id) {
+            profile.main_pet_health = await petGrowthService.calculateHealthFromSteps(userId)
+        }
+
         res.status(200).json({
             success: true,
             data: profile,
@@ -101,10 +106,17 @@ export const getUserPets = asyncHandler(async (req: Request, res: Response) => {
         // 最新のペット一覧を取得
         const pets = await petModel.getUserOwnedPets(user_id)
 
+        // 健康度を動的に計算して各ペットに追加
+        const healthPercentage = await petGrowthService.calculateHealthFromSteps(user_id)
+        const petsWithHealth = pets.map((pet) => ({
+            ...pet,
+            pet_health: healthPercentage,
+        }))
+
         res.status(200).json({
             success: true,
             data: {
-                pets: pets,
+                pets: petsWithHealth,
             },
         })
     } catch (error) {

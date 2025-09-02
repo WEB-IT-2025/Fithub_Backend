@@ -96,7 +96,8 @@ curl -X GET http://localhost:3000/api/pet/profile/7Mpj4mM1qS9vX2nE8fR3 \
     "main_pet_image_url": "pet_image_url.jpg",
     "main_pet_type": "cat",
     "main_pet_size": 75,
-    "main_pet_intimacy": 85
+    "main_pet_intimacy": 85,
+    "main_pet_health": 70
   }
 }
 ```
@@ -123,28 +124,32 @@ const response = await fetch('/api/pet/owned', {
 ```json
 {
   "success": true,
-  "data": [
-    {
-      "item_id": "pet_001",
-      "item_name": "かわいい猫",
-      "item_image_url": "cat_image.jpg",
-      "pet_type": "cat",
-      "user_main_pet": true,
-      "user_pet_name": "ミケ",
-      "pet_size": 75,
-      "pet_intimacy": 85
-    },
-    {
-      "item_id": "pet_002",
-      "item_name": "元気な犬",
-      "item_image_url": "dog_image.jpg",
-      "pet_type": "dog",
-      "user_main_pet": false,
-      "user_pet_name": "ポチ",
-      "pet_size": 60,
-      "pet_intimacy": 70
-    }
-  ]
+  "data": {
+    "pets": [
+      {
+        "item_id": "pet_001",
+        "item_name": "かわいい猫",
+        "item_image_url": "cat_image.jpg",
+        "pet_type": "cat",
+        "user_main_pet": true,
+        "user_pet_name": "ミケ",
+        "pet_size": 75,
+        "pet_intimacy": 85,
+        "pet_health": 70
+      },
+      {
+        "item_id": "pet_002",
+        "item_name": "元気な犬",
+        "item_image_url": "dog_image.jpg",
+        "pet_type": "dog",
+        "user_main_pet": false,
+        "user_pet_name": "ポチ",
+        "pet_size": 60,
+        "pet_intimacy": 70,
+        "pet_health": 70
+      }
+    ]
+  }
 }
 ```
 

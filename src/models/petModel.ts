@@ -20,6 +20,7 @@ export interface UserProfile extends RowDataPacket {
     main_pet_type: string | null
     main_pet_size: number | null
     main_pet_intimacy: number | null
+    main_pet_health: number | null
 }
 
 export interface UserPetInfo extends RowDataPacket {
@@ -31,6 +32,7 @@ export interface UserPetInfo extends RowDataPacket {
     user_pet_name: string
     pet_size: number
     pet_intimacy: number
+    pet_health: number
 }
 
 export const petModel = {
@@ -59,7 +61,8 @@ export const petModel = {
                     main_i.item_image_url as main_pet_image_url,
                     main_p.pet_type as main_pet_type,
                     main_up.pet_size as main_pet_size,
-                    main_up.pet_intimacy as main_pet_intimacy
+                    main_up.pet_intimacy as main_pet_intimacy,
+                    NULL as main_pet_health
                 FROM USERS u
                 LEFT JOIN USERS_PETS main_up ON u.user_id = main_up.user_id AND main_up.user_main_pet = TRUE
                 LEFT JOIN PETS main_p ON main_up.item_id = main_p.item_id
@@ -86,7 +89,8 @@ export const petModel = {
                     up.user_main_pet,
                     up.user_pet_name,
                     up.pet_size,
-                    up.pet_intimacy
+                    up.pet_intimacy,
+                    0 as pet_health
                 FROM USERS_PETS up
                 JOIN PETS p ON up.item_id = p.item_id
                 JOIN ITEMS i ON p.item_id = i.item_id
