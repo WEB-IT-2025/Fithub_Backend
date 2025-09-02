@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '~/middlewares/authMiddleware'
 import { contributionModel } from '~/models/contributionModel'
 import { exerciseModel } from '~/models/exerciseModel'
 import { hourlyDataModel } from '~/models/hourlyDataModel'
+import { userModel } from '~/models/userModel'
 import { dataSyncService } from '~/services/dataSyncService'
 
 // POST /api/data/sync - Manual sync user data (includes hourly data)
@@ -49,6 +50,53 @@ export const syncUserDataManually = async (req: Request, res: Response) => {
             success: false,
             message: 'Failed to sync user data',
             error: error instanceof Error ? error.message : 'Unknown error',
+        })
+    }
+}
+
+// GET /api/data/githubUserName/:userId - Get user's GitHub username (public)
+export const getGithubUserName = async (req: Request, res: Response) => {
+    try {
+        const userId = req.params.userId
+        if (!userId || userId.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid user_id parameter',
+            })
+        }
+
+        // Find user by user_id
+        const user = await userModel.findByUserId(userId)
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            })
+        }
+
+        if (!user.github_username) {
+            return res.status(404).json({
+                success: false,
+                message: 'GitHub username not found for this user',
+            })
+        }
+
+        const response = {
+            success: true,
+            data: {
+                user_id: userId,
+                github_username: user.github_username,
+                github_user_id: user.github_user_id,
+            },
+        }
+
+        res.json(response)
+    } catch (error) {
+        console.error('❌ [DATA] Failed to get GitHub username:', error)
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve GitHub username',
         })
     }
 }

@@ -125,7 +125,46 @@
 }
 ```
 
-### 📈 時間別歩数データ取得
+### � GitHub ユーザー名取得
+
+#### `GET /api/data/githubUserName/:userId`
+
+**認証**: 不要  
+**説明**: 指定されたユーザーのGitHubユーザー名とGitHub IDを取得
+
+**URLパラメータ:**
+- `userId` (string): 対象ユーザーのID
+
+**レスポンス例:**
+```json
+{
+  "success": true,
+  "data": {
+    "user_id": "user_1752561583127_xengpxnh1",
+    "github_username": "keyi1000",
+    "github_user_id": "169336440"
+  }
+}
+```
+
+**エラーレスポンス:**
+```json
+{
+  "success": false,
+  "message": "User not found"
+}
+```
+
+または
+
+```json
+{
+  "success": false,
+  "message": "GitHub username not found for this user"
+}
+```
+
+### �📈 時間別歩数データ取得
 
 #### `GET /api/data/hourly/:userId`
 
