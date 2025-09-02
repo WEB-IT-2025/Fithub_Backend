@@ -18,8 +18,8 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
     }
 
     try {
-        // ペット成長データを最新に更新
-        await petGrowthService.updatePetGrowthForUser(userId)
+        // ペット成長データを最新に更新（デバッグ時はコメントアウト）
+        // await petGrowthService.updatePetGrowthForUser(userId)
 
         // 最新のプロフィール情報を取得
         const profile = await petModel.getUserProfile(userId)
@@ -100,8 +100,8 @@ export const getUserPets = asyncHandler(async (req: Request, res: Response) => {
     }
 
     try {
-        // ペット成長データを最新に更新
-        await petGrowthService.updatePetGrowthForUser(user_id)
+        // ペット成長データを最新に更新（デバッグ時はコメントアウト）
+        // await petGrowthService.updatePetGrowthForUser(user_id)
 
         // 最新のペット一覧を取得
         const pets = await petModel.getUserOwnedPets(user_id)
