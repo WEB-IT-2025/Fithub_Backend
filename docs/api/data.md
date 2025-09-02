@@ -127,10 +127,10 @@
 
 ### � GitHub ユーザー名取得
 
-#### `GET /api/data/githubUserName/:userId`
+#### `GET /api/data/userName/:userId`
 
 **認証**: 不要  
-**説明**: 指定されたユーザーのGitHubユーザー名とGitHub IDを取得
+**説明**: 指定されたユーザーのGitHubユーザー名、Googleユーザー名、各種IDを取得
 
 **URLパラメータ:**
 - `userId` (string): 対象ユーザーのID
@@ -141,26 +141,25 @@
   "success": true,
   "data": {
     "user_id": "user_1752561583127_xengpxnh1",
+    "user_name": "ダミーFit",
     "github_username": "keyi1000",
-    "github_user_id": "169336440"
+    "github_user_id": "169336440",
+    "google_user_id": null
   }
 }
 ```
+
+**フィールド説明:**
+- `user_name`: Googleアカウントのユーザー名（表示名）
+- `github_username`: GitHubのユーザー名（@username）
+- `github_user_id`: GitHubの内部ユーザーID
+- `google_user_id`: GoogleアカウントのID（通常は非公開）
 
 **エラーレスポンス:**
 ```json
 {
   "success": false,
   "message": "User not found"
-}
-```
-
-または
-
-```json
-{
-  "success": false,
-  "message": "GitHub username not found for this user"
 }
 ```
 

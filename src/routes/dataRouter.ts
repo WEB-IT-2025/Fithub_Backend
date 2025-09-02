@@ -8,10 +8,10 @@ import {
     clearOutdatedHourlyData,
     clearSpecificDateData,
     clearUserHourlyData,
-    getGithubUserName,
     getUserContributions,
     getUserHourlyData,
     getUserMonthlyData,
+    getUserName,
     getUserWeeklyData,
     syncUserDataManually,
     testDailyCleanup,
@@ -27,8 +27,8 @@ const router = Router()
 // GET /api/data/contribution/:userId - Get user's contribution data (30 days + totals)
 router.get('/contribution/:userId', getUserContributions)
 
-// GET /api/data/githubUserName/:userId - Get user's GitHub username
-router.get('/githubUserName/:userId', getGithubUserName)
+// GET /api/data/userName/:userId - Get user's GitHub and Google user info
+router.get('/userName/:userId', getUserName)
 
 // GET /api/data/weekly/:userId - Get user's weekly exercise data (7 days)
 router.get('/weekly/:userId', getUserWeeklyData)
