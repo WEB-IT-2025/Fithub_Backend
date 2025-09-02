@@ -105,8 +105,7 @@ export const petModel = {
         }
     },
 
-    // 利用可能な全ペット一覧取得（購入状況含む）
-    // 主ペット更新
+    // 主ペット更新（健康度引き継ぎ付き）
     async updateUserMainPet(userId: string, itemId: string, petName: string): Promise<boolean> {
         try {
             // まず現在の主ペットを解除
@@ -119,6 +118,7 @@ export const petModel = {
                 'UPDATE USERS_PETS SET user_main_pet = TRUE, user_pet_name = ? WHERE user_id = ? AND item_id = ?',
                 [petName, userId, itemId]
             )
+
             return result.affectedRows > 0
         } catch (error) {
             console.error('Error updating main pet:', error)

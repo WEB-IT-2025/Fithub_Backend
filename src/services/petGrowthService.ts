@@ -212,8 +212,33 @@ export const petGrowthService = {
     },
 
     /**
+     * メインペット切り替え時に健康度を引き継ぐ
+     * 新しいメインペットが前のメインペットの健康度を引き継ぐ
+     */
+    async transferHealthOnMainPetSwitch(userId: string, newMainPetItemId: string): Promise<boolean> {
+        try {
+            // 現在のメインペットの健康度計算
+            const currentHealthPercentage = await this.calculateHealthFromSteps(userId)
+
+            console.log(
+                `Health inheritance for user ${userId}: ` +
+                    `new main pet ${newMainPetItemId} inherits health=${currentHealthPercentage}%`
+            )
+
+            // 健康度は歩数ベースで全ペット共通なので、
+            // 実際にはDBに保存せずに動的計算で一致するが、
+            // ログとして記録し、将来的な拡張に備える
+
+            return true
+        } catch (error) {
+            console.error('Error transferring health on main pet switch:', error)
+            return false
+        }
+    },
+
+    /**
      * ユーザーのペットのサイズと親密度を更新
-     * サイズと親密度はペット毎に個別計算、健康度は全ペット共通
+     * メインペットのみサイズと親密度を更新、サブペットは健康度のみ（引き継がない）
      */
     async updatePetGrowthForUser(userId: string): Promise<boolean> {
         try {
@@ -228,22 +253,28 @@ export const petGrowthService = {
             // 健康度を計算（全ペット共通、歩数ベース）
             const healthPercentage = await this.calculateHealthFromSteps(userId)
 
-            // 各ペットのサイズと親密度を個別に計算・更新
+            // メインペットのみサイズと親密度を更新
             for (const pet of userPets) {
-                // ペット個別のサイズ計算（コントリビューション + ペット特性）
-                const newSize = await this.calculateSizeForIndividualPet(userId, pet.item_id)
+                if (pet.user_main_pet) {
+                    // メインペットの場合：サイズと親密度を個別計算・更新
+                    const newSize = await this.calculateSizeForIndividualPet(userId, pet.item_id)
+                    const newIntimacy = await this.calculateIntimacyFromPurchaseAndCare(userId, pet.item_id)
 
-                // ペット個別の親密度計算（購入日 + メインペット状態 + アイテム使用）
-                const newIntimacy = await this.calculateIntimacyFromPurchaseAndCare(userId, pet.item_id)
+                    // ペットデータを更新
+                    await petModel.updatePetGrowthData(userId, pet.item_id, newSize, newIntimacy)
 
-                // ペットデータを更新
-                await petModel.updatePetGrowthData(userId, pet.item_id, newSize, newIntimacy)
-
-                console.log(
-                    `Updated pet ${pet.item_id} for user ${userId}: ` +
-                        `size=${newSize}%, intimacy=${newIntimacy}%, ` +
-                        `health=${healthPercentage}%, isMainPet=${pet.user_main_pet}`
-                )
+                    console.log(
+                        `Updated MAIN pet ${pet.item_id} for user ${userId}: ` +
+                            `size=${newSize}%, intimacy=${newIntimacy}%, ` +
+                            `health=${healthPercentage}%`
+                    )
+                } else {
+                    // サブペットの場合：健康度以外は引き継がない（更新しない）
+                    console.log(
+                        `Skipped SUB pet ${pet.item_id} for user ${userId}: ` +
+                            `size/intimacy not inherited, health=${healthPercentage}%`
+                    )
+                }
             }
 
             return true

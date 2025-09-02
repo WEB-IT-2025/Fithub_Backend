@@ -175,9 +175,15 @@ export const updateUserMainPet = asyncHandler(async (req: Request, res: Response
         const success = await petModel.updateUserMainPet(user_id, item_id, pet_name.trim())
 
         if (success) {
+            // メインペット切り替え時に健康度を引き継ぎ（ログ記録）
+            await petGrowthService.transferHealthOnMainPetSwitch(user_id, item_id)
+
+            // ペット成長データを最新に更新
+            await petGrowthService.updatePetGrowthForUser(user_id)
+
             res.status(200).json({
                 success: true,
-                message: '主ペットを更新しました',
+                message: '主ペットを更新しました（健康度は引き継がれました）',
             })
         } else {
             res.status(400).json({
