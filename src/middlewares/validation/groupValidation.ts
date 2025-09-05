@@ -1,6 +1,6 @@
 // src/middlewares/groupValidations.ts
 import { NextFunction, Request, Response } from 'express'
-import { body } from 'express-validator'
+import { body, param } from 'express-validator'
 import { validationResult } from 'express-validator'
 
 export const validateGroupCreation = [
@@ -57,8 +57,14 @@ export const validateGroupDelete = [
 
 // メンバー操作用バリデーション（自己参加方式）
 export const validateMemberOperation = [
-    body('group_id').notEmpty().withMessage('group_idは必須です'),
+    param('group_id').notEmpty().withMessage('group_idは必須です'),
     // user_idはJWTから取得するため不要
+]
+
+// メンバー削除用バリデーション（グループリーダー限定）
+export const validateMemberRemoval = [
+    param('group_id').notEmpty().withMessage('group_idは必須です'),
+    body('user_id').notEmpty().withMessage('削除するuser_idは必須です'),
 ]
 
 // 招待操作用バリデーション（グループリーダー限定）

@@ -26,6 +26,7 @@ import {
     validateInviteCodeJoin,
     validateInviteOperation,
     validateMemberOperation,
+    validateMemberRemoval,
 } from '~/middlewares/validation/groupValidation'
 
 const router = express.Router()
@@ -94,7 +95,7 @@ router.get('/members/list/:group_id', getGroupMembers)
 
 router.delete(
     '/members/remove/:group_id',
-    validateMemberOperation,
+    validateMemberRemoval,
     handleValidationErrors,
     requireGroupLeader, // グループリーダー権限チェック
     removeGroupMember
