@@ -102,6 +102,39 @@ export const removeGroupMember = asyncHandler(async (req: Request, res: Response
 
     res.status(200).json(result)
 })
+
+// グループ退会（自分自身）
+export const leaveGroup = asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user as UserPayload // JWTから取得
+    const { group_id } = req.params // パスパラメーターから取得
+
+    const user_id = user.user_id // 自分自身のIDを使用
+
+    const group = await groupModel.getGroupById(group_id)
+    if (!group) {
+        return res.status(404).json({ error: 'グループが見つかりません。' })
+    }
+
+    // グループリーダーは自分自身を退会できない
+    if (group.admin_id === user_id) {
+        return res.status(400).json({
+            error: 'グループリーダーは自分自身を退会できません。グループを削除するか、リーダーを移譲してください。',
+        })
+    }
+
+    // メンバーシップ確認
+    const isMember = await groupModel.isGroupMember(group_id, user_id)
+    if (!isMember) {
+        return res.status(400).json({ error: 'あなたはこのグループのメンバーではありません。' })
+    }
+
+    await groupModel.removeGroupMember(group_id, user_id)
+
+    res.status(200).json({
+        message: `${group.group_name}から退会しました`,
+    })
+})
+
 // ユーザーが所属するグループ一覧
 export const getUserGroups = asyncHandler(async (req: Request, res: Response) => {
     const { user_id } = req.params

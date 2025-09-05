@@ -11,6 +11,7 @@ import {
     getUserGroups,
     inviteGroupMember,
     joinByInviteCode,
+    leaveGroup,
     removeGroupMember,
     updateGroup,
 } from '~/controllers/groupController'
@@ -69,6 +70,9 @@ router.get('/search', authenticateJWT, getPublicGroups)
 
 // グループメンバー操作
 router.post('/members/join/:group_id', authenticateJWT, validateMemberOperation, handleValidationErrors, addGroupMember)
+
+// グループ退会（自分自身）
+router.delete('/members/leave/:group_id', authenticateJWT, validateMemberOperation, handleValidationErrors, leaveGroup)
 
 router.post(
     '/members/invite',
