@@ -67,7 +67,7 @@ router.get('/member/userlist/:user_id', getUserGroups)
 router.get('/search', authenticateJWT, getPublicGroups)
 
 // グループメンバー操作
-router.post('/members/join', authenticateJWT, validateMemberOperation, handleValidationErrors, addGroupMember)
+router.post('/members/join/:group_id', authenticateJWT, validateMemberOperation, handleValidationErrors, addGroupMember)
 
 router.post(
     '/members/invite',
@@ -93,7 +93,7 @@ router.post('/invite-code/join', authenticateJWT, validateInviteCodeJoin, handle
 router.get('/members/list/:group_id', getGroupMembers)
 
 router.delete(
-    '/members/remove',
+    '/members/remove/:group_id',
     validateMemberOperation,
     handleValidationErrors,
     requireGroupLeader, // グループリーダー権限チェック

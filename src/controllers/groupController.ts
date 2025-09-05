@@ -70,7 +70,8 @@ export const adminDeleteGroup = asyncHandler(async (req: Request, res: Response)
 
 // メンバー削除（requireGroupLeaderミドルウェアで保護済み）
 export const removeGroupMember = asyncHandler(async (req: Request, res: Response) => {
-    const { group_id, user_id } = req.body
+    const { group_id } = req.params // パスパラメーターから取得
+    const { user_id } = req.body // 削除対象のユーザーIDはbodyから取得
 
     const group = await groupModel.getGroupById(group_id)
     if (!group) {
@@ -169,7 +170,7 @@ export const getGroupMembers = asyncHandler(async (req: Request, res: Response) 
 // グループにメンバー追加（自己参加方式）
 export const addGroupMember = asyncHandler(async (req: Request, res: Response) => {
     const user = req.user as UserPayload // JWTから取得
-    const { group_id } = req.body
+    const { group_id } = req.params // パスパラメーターから取得
 
     const user_id = user.user_id // 自分自身のIDを使用
 
