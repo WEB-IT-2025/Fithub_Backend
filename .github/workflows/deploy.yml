@@ -1,0 +1,89 @@
+name: 🚀 EC2へデプロイ & Discord通知
+
+on:
+    push:
+        branches: [main, dev]
+
+jobs:
+    deploy:
+        name: 🔄 EC2にデプロイ
+        runs-on: ubuntu-latest
+
+        steps:
+            # ① リポジトリをチェックアウト
+            - name: 📥 リポジトリをチェックアウト
+              uses: actions/checkout@v3
+
+            # ② SSH Agentのセットアップ（秘密鍵）
+            - name: 🔐 SSHのセットアップ
+              uses: webfactory/ssh-agent@v0.7.0
+              with:
+                  ssh-private-key: ${{ secrets.EC2_KEY }}
+
+            # ③ .envファイルをEC2に送信
+            - name: 📨 .envファイルをEC2に送信
+              run: |
+                  echo "${{ secrets.ENV_FILE }}" > .env
+                  ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'mkdir -p ~/fithub'
+                  scp -o StrictHostKeyChecking=no .env ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/fithub/.env
+
+            # ④ デプロイ実行
+            - name: 🚀 EC2経由でデプロイ実行
+              run: |
+                  ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+                    BRANCH=$(echo "${{ github.ref }}" | sed 's|refs/heads/||')
+
+                    echo "📁 fithub ディレクトリを準備中..."
+                    if [ ! -d "$HOME/fithub/.git" ]; then
+                      echo "⚠️ .gitが存在しない → フォルダを削除してcloneし直します"
+                      rm -rf $HOME/fithub
+                      git clone https://github.com/${{ github.repository }} $HOME/fithub
+                    else
+                      echo "📥 既存のリポジトリを更新中（git pull）..."
+                      cd $HOME/fithub
+                      git reset --hard
+                      git clean -fd
+                      git pull origin $BRANCH
+                    fi
+
+                    echo "📂 fithub ディレクトリに移動中..."
+                    cd $HOME/fithub
+
+                    echo "📦 依存関係のインストール中..."
+                    npm install
+
+                    echo "🔨 TypeScriptをビルド中..."
+                    npm run build
+
+                    echo "🚀 PM2でアプリを再起動中..."
+                    pm2 restart fithub-api || pm2 start dist/index.js --name "fithub-api"
+
+                    echo "💾 PM2 状態を保存（reboot対策）..."
+                    pm2 save
+                  EOF
+
+    # ⑤ デプロイ成功時の通知
+    notify-success:
+        needs: deploy
+        if: success()
+        runs-on: ubuntu-latest
+        steps:
+            - name: ✅ Discord通知（成功）
+              run: |
+                  curl -X POST -H "Content-Type: application/json" \
+                  -d '{
+                    "content": "**✅ デプロイが正常に完了しました！**\n📦 リポジトリ: ${{ github.repository }}\n🌿 ブランチ: ${{ github.ref_name }}\n👤 実行者: ${{ github.actor }}"
+                  }' ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+    # ⑥ デプロイ失敗時の通知
+    notify-failure:
+        needs: deploy
+        if: failure()
+        runs-on: ubuntu-latest
+        steps:
+            - name: ❌ Discord通知（失敗）
+              run: |
+                  curl -X POST -H "Content-Type: application/json" \
+                  -d '{
+                    "content": "**❌ デプロイに失敗しました！**\n📦 リポジトリ: ${{ github.repository }}\n🌿 ブランチ: ${{ github.ref_name }}\n👤 実行者: ${{ github.actor }}"
+                  }' ${{ secrets.DISCORD_WEBHOOK_URL }}
